@@ -152,6 +152,32 @@ discovery = find_counterexample(
 
 This composes either exhaustive grid search or optional random search, objective-based candidate selection, and independent validation while retaining every evaluated search point. `DiscoveryBudget` is executable: the requested search and validation simulation counts are passed into the evaluators and checked against the returned results. Built-in objectives include `absolute_deviation`, `positive_deviation`, and `negative_deviation`. The returned object represents a validated simulation candidate within the searched DGP family; it is not a mathematical proof of a universal counterexample.
 
+
+### Counterexample shrinking
+
+A validated candidate can be simplified with an explicit, auditable simplicity plan:
+
+```python
+from statfuzz.search import ShrinkDimension, ShrinkPlan, shrink_counterexample
+
+plan = ShrinkPlan(
+    (
+        ShrinkDimension("n", (4, 8, 12, 20)),
+        ShrinkDimension("sigma", (0.4, 0.8, 1.0, 1.4)),
+    )
+)
+
+shrunk = shrink_counterexample(
+    point=discovery.point,
+    plan=plan,
+    evaluate=shrink_evaluate,
+    simulations=20_000,
+    root_seed=2028,
+)
+```
+
+Each dimension lists levels from simplest to most complex. Every proposed simplification is re-simulated, and only proposals that preserve the failure criterion are accepted. The complete accepted/rejected trace is retained. The algorithm is deterministic and greedy; it does not claim mathematical minimality. See `docs/SHRINKING.md`.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.
