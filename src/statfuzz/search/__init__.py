@@ -2,6 +2,13 @@
 
 from .budget import DiscoveryBudget
 from .discovery import CounterexampleDiscoveryResult, find_counterexample
+from .family import (
+    FamilyPoint,
+    FamilyShrinkPlan,
+    FamilyShrinkResult,
+    FamilyShrinkStep,
+    shrink_dgp_family,
+)
 from .grid import GridSearchResult, grid_search
 from .objective import (
     AbsoluteDeviationObjective,
@@ -31,6 +38,10 @@ __all__ = [
     "CounterexampleShrinkResult",
     "DiscoveryBudget",
     "FailureCriterion",
+    "FamilyPoint",
+    "FamilyShrinkPlan",
+    "FamilyShrinkResult",
+    "FamilyShrinkStep",
     "GridSearchResult",
     "NegativeDeviationObjective",
     "ObjectiveThresholdCriterion",
@@ -49,5 +60,6 @@ __all__ = [
     "grid_search",
     "random_search",
     "shrink_counterexample",
+    "shrink_dgp_family",
     "validate_candidate",
 ]
