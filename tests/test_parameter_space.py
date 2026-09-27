@@ -61,3 +61,12 @@ def test_point_at_rejects_invalid_index():
         space.point_at(2)
     with pytest.raises(TypeError, match="integer"):
         space.point_at(1.5)
+
+
+def test_parameter_point_with_value_is_immutable():
+    point = next(iter(ParameterSpace({"n": [20], "sigma": [1.4]})))
+    replaced = point.with_value("n", 8)
+
+    assert point["n"] == 20
+    assert replaced["n"] == 8
+    assert replaced["sigma"] == 1.4
