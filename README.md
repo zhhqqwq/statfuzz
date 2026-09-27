@@ -89,6 +89,21 @@ print(search.to_markdown())
 
 The result retains every evaluated point. Ranking by absolute deviation is explicitly exploratory; a selected candidate should be re-simulated with an independent validation budget before being presented as a confirmed counterexample. See `docs/SEARCH.md`.
 
+
+### Independent candidate validation
+
+```python
+from statfuzz.search import validate_candidate
+
+validated = validate_candidate(
+    search=search,
+    evaluate=validation_evaluate,
+    validation_root_seed=2026,
+)
+```
+
+The selected ParameterPoint is re-simulated with a new deterministic random stream. Search and validation estimates, seeds, MCSEs, and simulation budgets remain separate in the returned result object.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.
