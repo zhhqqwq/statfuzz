@@ -35,18 +35,16 @@ class CounterexampleDiscoveryResult:
 
     def as_row(self) -> dict[str, object]:
         row = self.validation.as_row()
+        selected = self.search.ranked()[self.validation.candidate_rank]
         row.update(
             {
                 "objective": self.search.objective_name,
-                "objective_score": self.validation.search_result.deviation,
+                "objective_score": selected.objective_score(self.search.objective),
                 "search_points": len(self.search.records),
                 "search_budget": self.budget.search_simulations,
                 "validation_budget": self.budget.validation_simulations,
             }
         )
-        row["objective_score"] = self.search.records[
-            self.validation.candidate_rank
-        ].objective_score(self.search.objective)
         return row
 
 
