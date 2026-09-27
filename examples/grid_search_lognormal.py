@@ -2,7 +2,6 @@ from statfuzz import stress_test
 from statfuzz.dgp import LogNormal
 from statfuzz.search import ParameterSpace, grid_search
 
-
 space = ParameterSpace(
     {
         "n": [8, 12, 20],
