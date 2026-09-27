@@ -40,6 +40,10 @@ def _sample_indices(*, population_size: int, draws: int, seed: int) -> tuple[int
 
     if seed < 0:
         raise ValueError("seed must be non-negative")
+    if population_size > _UINT64_SIZE:
+        raise ValueError(
+            "random_search currently supports ParameterSpace sizes up to 2**64"
+        )
     if draws <= 0:
         raise ValueError("draws must be positive")
     if draws > population_size:
