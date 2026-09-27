@@ -1,7 +1,7 @@
 from .base import DataGenerator
-from .normal import Normal
 from .lognormal import LogNormal
-from .student_t import StudentT
 from .mixture import MixtureNormal
+from .normal import Normal
+from .student_t import StudentT
 
-__all__ = ["DataGenerator", "Normal", "LogNormal", "StudentT", "MixtureNormal"]
+__all__ = ["DataGenerator", "LogNormal", "MixtureNormal", "Normal", "StudentT"]
