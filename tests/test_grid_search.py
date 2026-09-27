@@ -1,3 +1,5 @@
+import pytest
+
 from statfuzz import StressTestResult, stress_test
 from statfuzz.dgp import LogNormal
 from statfuzz.search import ParameterSpace, grid_search
@@ -62,7 +64,7 @@ def test_rows_contain_statistical_search_columns():
     assert row["param:x"] == 1
     assert row["nominal"] == 0.05
     assert row["empirical"] == 0.06
-    assert row["absolute_deviation"] == 0.01
+    assert row["absolute_deviation"] == pytest.approx(0.01)
     assert row["simulations"] == 100
     assert isinstance(row["seed"], int)
 
