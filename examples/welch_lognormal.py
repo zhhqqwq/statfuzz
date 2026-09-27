@@ -1,7 +1,6 @@
 from statfuzz import stress_test
 from statfuzz.dgp import LogNormal
 
-
 result = stress_test(
     method="welch_ttest",
     metric="type1_error",

@@ -5,14 +5,14 @@ from statfuzz.dgp import Normal
 
 
 def test_stress_test_is_reproducible():
-    kwargs = dict(
-        method="welch_ttest",
-        metric="type1_error",
-        dgp=Normal(),
-        n1=20,
-        simulations=300,
-        seed=99,
-    )
+    kwargs = {
+        "method": "welch_ttest",
+        "metric": "type1_error",
+        "dgp": Normal(),
+        "n1": 20,
+        "simulations": 300,
+        "seed": 99,
+    }
     a = stress_test(**kwargs)
     b = stress_test(**kwargs)
     assert a.empirical == b.empirical
