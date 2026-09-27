@@ -44,7 +44,7 @@ Goal: simplify a discovered failure case while preserving the failure criterion.
 
 - [x] parameter simplification strategy
 - [x] sample-size shrinking
-- [ ] distribution-family simplification
+- [x] distribution-family simplification
 - [x] reproducible shrink trace
 
 ## v0.5 — Failure maps and reports

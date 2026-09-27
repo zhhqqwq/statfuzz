@@ -178,6 +178,48 @@ shrunk = shrink_counterexample(
 
 Each dimension lists levels from simplest to most complex. Every proposed simplification is re-simulated, and only proposals that preserve the failure criterion are accepted. The complete accepted/rejected trace is retained. The algorithm is deterministic and greedy; it does not claim mathematical minimality. See `docs/SHRINKING.md`.
 
+
+Family-level simplification is also supported with an explicit canonical hierarchy:
+
+```python
+from statfuzz.search import FamilyPoint, FamilyShrinkPlan, shrink_dgp_family
+
+family_plan = FamilyShrinkPlan(
+    (
+        FamilyPoint.from_mapping("normal", {"mean": 0.0, "sd": 1.0}),
+        FamilyPoint.from_mapping(
+            "lognormal",
+            {"mean": 0.0, "sigma": 1.0},
+        ),
+        FamilyPoint.from_mapping(
+            "student_t",
+            {"df": 5.0, "mean": 0.0, "scale": 1.0},
+        ),
+        FamilyPoint.from_mapping(
+            "mixture_normal",
+            {
+                "weight": 0.9,
+                "mean1": 0.0,
+                "sd1": 1.0,
+                "mean2": 0.0,
+                "sd2": 5.0,
+                "mean": 0.0,
+            },
+        ),
+    )
+)
+
+family_shrink = shrink_dgp_family(
+    start=family_plan.levels[-1],
+    plan=family_plan,
+    evaluate=family_evaluate,
+    simulations=20_000,
+    root_seed=2030,
+)
+```
+
+StatFuzz never infers that one family is simpler than another; the plan order is explicit. Every cross-family proposal is re-simulated and recorded.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.

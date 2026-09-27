@@ -182,6 +182,48 @@ shrunk = shrink_counterexample(
 
 每个维度都按“**最简单 → 最复杂**”排列。StatFuzz 会重新模拟每一个简化 proposal，只有仍满足 failure criterion 的候选才会被接受，同时保留完整的接受/拒绝 trace。当前算法是确定性的 greedy simplification，不声称得到数学意义上的全局最小反例。详见 `docs/SHRINKING.md`。
 
+
+同时支持**跨分布族简化**。用户需要显式声明 canonical family hierarchy：
+
+```python
+from statfuzz.search import FamilyPoint, FamilyShrinkPlan, shrink_dgp_family
+
+family_plan = FamilyShrinkPlan(
+    (
+        FamilyPoint.from_mapping("normal", {"mean": 0.0, "sd": 1.0}),
+        FamilyPoint.from_mapping(
+            "lognormal",
+            {"mean": 0.0, "sigma": 1.0},
+        ),
+        FamilyPoint.from_mapping(
+            "student_t",
+            {"df": 5.0, "mean": 0.0, "scale": 1.0},
+        ),
+        FamilyPoint.from_mapping(
+            "mixture_normal",
+            {
+                "weight": 0.9,
+                "mean1": 0.0,
+                "sd1": 1.0,
+                "mean2": 0.0,
+                "sd2": 5.0,
+                "mean": 0.0,
+            },
+        ),
+    )
+)
+
+family_shrink = shrink_dgp_family(
+    start=family_plan.levels[-1],
+    plan=family_plan,
+    evaluate=family_evaluate,
+    simulations=20_000,
+    root_seed=2030,
+)
+```
+
+StatFuzz 不会自行判断哪一种分布族“更简单”；顺序完全由用户显式声明。每一次跨 family proposal 都会重新模拟，并进入可审计 trace。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。
