@@ -1,9 +1,9 @@
 import pytest
 
 from statfuzz import StressTestResult
-from statfuzz.search import ParameterPoint
-from statfuzz.search.shrink import (
+from statfuzz.search import (
     ObjectiveThresholdCriterion,
+    ParameterPoint,
     ShrinkDimension,
     ShrinkPlan,
     shrink_counterexample,
