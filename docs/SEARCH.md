@@ -90,3 +90,54 @@ The API rejects reuse of the same root seed. It also verifies that the validatio
 Independent validation reduces the risk that a candidate looks extreme only because it was selected as the maximum over noisy search estimates. It does not by itself prove a universal mathematical counterexample. Important findings should still be interpreted in terms of the chosen DGP family, parameter space, simulation budget, uncertainty, and failure criterion.
 
 A future find_counterexample API will combine candidate discovery and this validation stage while keeping the two estimates distinct.
+
+
+## High-level counterexample discovery
+
+The low-level pieces can be composed manually:
+
+```text
+ParameterSpace
+    |
+    v
+grid_search
+    |
+    v
+ranked candidate
+    |
+    v
+validate_candidate
+```
+
+For the common case, `find_counterexample` now performs that orchestration while preserving both underlying result objects:
+
+```python
+from statfuzz.search import find_counterexample
+
+discovery = find_counterexample(
+    space=space,
+    search_evaluate=search_evaluate,
+    validation_evaluate=validation_evaluate,
+    search_root_seed=42,
+    validation_root_seed=2026,
+)
+```
+
+The function currently uses the documented `absolute_deviation` objective, selects rank 0 from the complete grid search, and independently validates that exact ParameterPoint.
+
+The returned `CounterexampleDiscoveryResult` contains:
+
+- the full `GridSearchResult`, including every evaluated point;
+- the `CandidateValidationResult`;
+- direct access to the selected point;
+- direct access to the search-stage and validation-stage StressTestResult objects.
+
+This high-level API is intentionally an orchestration layer. It does not hide the search table, merge the two Monte Carlo estimates, or convert a simulation result into a mathematical proof.
+
+### Current interpretation boundary
+
+At this stage, "counterexample" means:
+
+> a parameter point within the explicitly searched DGP family that was selected by the search objective and then re-estimated using an independent validation random stream.
+
+It does not mean that StatFuzz has proved the statistical method fails for every related distribution, every nearby parameter point, or an unrestricted population class. Shrinking, broader search strategies, and richer uncertainty reporting are later roadmap items.
