@@ -4,7 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from ..result import StressTestResult
-from .grid import GridSearchResult, _point_seed
+from .grid import _point_seed
+from .result import SearchResult
 from .space import ParameterPoint
 
 ValidationEvaluator = Callable[[ParameterPoint, int], StressTestResult]
@@ -60,7 +61,7 @@ class CandidateValidationResult:
 
 def validate_candidate(
     *,
-    search: GridSearchResult,
+    search: SearchResult,
     evaluate: ValidationEvaluator,
     validation_root_seed: int,
     rank: int = 0,
