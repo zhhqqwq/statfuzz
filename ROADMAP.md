@@ -42,10 +42,10 @@ Goal: expose a high-level API such as `find_counterexample(...)`.
 
 Goal: simplify a discovered failure case while preserving the failure criterion.
 
-- [ ] parameter simplification strategy
-- [ ] sample-size shrinking
+- [x] parameter simplification strategy
+- [x] sample-size shrinking
 - [ ] distribution-family simplification
-- [ ] reproducible shrink trace
+- [x] reproducible shrink trace
 
 ## v0.5 — Failure maps and reports
 
