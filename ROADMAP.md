@@ -31,9 +31,11 @@ Goal: move from one manually chosen DGP to a reproducible failure-region search.
 
 Goal: expose a high-level API such as `find_counterexample(...)`.
 
+- [x] high-level `find_counterexample(...)` workflow
+
 - [ ] objective functions for deviation from nominal properties
 - [ ] search budgets
-- [ ] reproducible best-found counterexample
+- [x] reproducible best-found counterexample
 - [x] hold-out re-simulation to reduce search overfitting
 
 ## v0.4 — Counterexample shrinking

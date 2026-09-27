@@ -104,6 +104,23 @@ validated = validate_candidate(
 
 The selected ParameterPoint is re-simulated with a new deterministic random stream. Search and validation estimates, seeds, MCSEs, and simulation budgets remain separate in the returned result object.
 
+
+### High-level discovery
+
+```python
+from statfuzz.search import find_counterexample
+
+discovery = find_counterexample(
+    space=space,
+    search_evaluate=search_evaluate,
+    validation_evaluate=validation_evaluate,
+    search_root_seed=42,
+    validation_root_seed=2026,
+)
+```
+
+This composes grid search, top-candidate selection, and independent validation while retaining the full search table. The returned object represents a validated simulation candidate within the searched DGP family; it is not a mathematical proof of a universal counterexample.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.
