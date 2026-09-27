@@ -44,6 +44,22 @@ class ParameterPoint:
                 return value
         raise KeyError(name)
 
+    def with_value(self, name: str, value: JSONScalar) -> ParameterPoint:
+        """Return a new point with one existing parameter replaced."""
+
+        validated = _validate_scalar(value)
+        found = False
+        items = []
+        for key, current in self.items:
+            if key == name:
+                items.append((key, validated))
+                found = True
+            else:
+                items.append((key, current))
+        if not found:
+            raise KeyError(name)
+        return ParameterPoint(tuple(items))
+
 
 class ParameterSpace:
     """Finite, deterministic Cartesian product of named parameter candidates."""
