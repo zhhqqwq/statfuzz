@@ -1,5 +1,7 @@
 # StatFuzz
 
+**English** | [简体中文](README.zh-CN.md)
+
 **Property-based stress testing and automatic counterexample discovery for statistical methods.**
 
 StatFuzz asks a different question from a typical statistics library:
