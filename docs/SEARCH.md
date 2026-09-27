@@ -49,3 +49,44 @@ absolute_deviation = abs(empirical - nominal)
 This ranking is exploratory. Searching many points and selecting the largest observed deviation can select Monte Carlo noise as well as genuine finite-sample behavior.
 
 A later validation layer (Issue #3) will therefore re-run a selected candidate with an independent validation seed and a separate, usually larger, simulation budget. Search and validation estimates should be reported separately.
+
+
+## Independent hold-out validation
+
+A point selected because it looked extreme during the search stage has been selected using the same Monte Carlo noise that produced its estimate. StatFuzz therefore treats the search estimate as exploratory.
+
+The validation API re-runs the exact same ParameterPoint with a different root seed and a new deterministic per-point child seed:
+
+```python
+from statfuzz.search import validate_candidate
+
+validated = validate_candidate(
+    search=search,
+    evaluate=validation_evaluate,
+    validation_root_seed=2026,
+)
+```
+
+The validation evaluator is separate from the search evaluator on purpose. This lets the validation stage use a larger simulation budget without modifying the search record.
+
+A CandidateValidationResult stores both stages:
+
+```text
+candidate point
+search root seed
+validation root seed
+search child seed
+validation child seed
+search simulation budget
+validation simulation budget
+search empirical estimate + MCSE
+validation empirical estimate + MCSE
+```
+
+The API rejects reuse of the same root seed. It also verifies that the validation evaluator passes the provided child seed through to the underlying stress test.
+
+### Interpretation
+
+Independent validation reduces the risk that a candidate looks extreme only because it was selected as the maximum over noisy search estimates. It does not by itself prove a universal mathematical counterexample. Important findings should still be interpreted in terms of the chosen DGP family, parameter space, simulation budget, uncertainty, and failure criterion.
+
+A future find_counterexample API will combine candidate discovery and this validation stage while keeping the two estimates distinct.

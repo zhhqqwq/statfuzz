@@ -91,6 +91,21 @@ print(search.to_markdown())
 
 `grid_search` 会保留**全部搜索点**，而不是只返回“最差的那个”。这样既方便画 failure map，也避免把搜索过程隐藏成一个黑箱。
 
+
+### 独立验证候选反例
+
+```python
+from statfuzz.search import validate_candidate
+
+validated = validate_candidate(
+    search=search,
+    evaluate=validation_evaluate,
+    validation_root_seed=2026,
+)
+```
+
+验证阶段会对搜索选中的**同一个 ParameterPoint**使用新的 root seed，并生成新的确定性子 seed。返回对象会同时保留搜索与验证阶段的经验估计、MCSE、simulation budget 和随机种子，而不会把两次结果合并成一个数字。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。
@@ -169,7 +184,7 @@ independent validation budget
 validated counterexample
 ```
 
-Issue #3 会把这一层独立验证正式加入 API。
+这一层独立验证已经由 `validate_candidate()` 正式加入 API。
 
 ## 项目结构
 

@@ -34,7 +34,7 @@ Goal: expose a high-level API such as `find_counterexample(...)`.
 - [ ] objective functions for deviation from nominal properties
 - [ ] search budgets
 - [ ] reproducible best-found counterexample
-- [ ] hold-out re-simulation to reduce search overfitting
+- [x] hold-out re-simulation to reduce search overfitting
 
 ## v0.4 — Counterexample shrinking
 
