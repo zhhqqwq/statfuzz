@@ -17,7 +17,7 @@ def _point_seed(root_seed: int | None, point: ParameterPoint) -> int | None:
     if root_seed < 0:
         raise ValueError("seed must be non-negative or None")
 
-    payload = f"{root_seed}:{point.to_json()}".encode("utf-8")
+    payload = f"{root_seed}:{point.to_json()}".encode()
     digest = hashlib.blake2b(payload, digest_size=8, person=b"statfuzz").digest()
     return int.from_bytes(digest, byteorder="big", signed=False)
 
