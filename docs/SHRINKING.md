@@ -109,8 +109,97 @@ accepted / rejected
 
 The trace is intended to make the simplification process auditable rather than presenting only the final point.
 
+## Distribution-family shrinking
+
+Scalar parameter shrinking and family shrinking are intentionally separate abstractions.
+
+A family candidate is represented by a serializable `FamilyPoint`:
+
+```python
+from statfuzz.search import FamilyPoint
+
+student_t = FamilyPoint.from_mapping(
+    "student_t",
+    {"df": 5.0, "mean": 0.0, "scale": 1.0},
+)
+```
+
+The family name is an explicit user-facing label. The parameter payload contains only parameters that belong to that family.
+
+A `FamilyShrinkPlan` declares one canonical candidate per family, ordered from simplest to most complex:
+
+```python
+from statfuzz.search import FamilyShrinkPlan
+
+plan = FamilyShrinkPlan(
+    (
+        FamilyPoint.from_mapping(
+            "normal",
+            {"mean": 0.0, "sd": 1.0},
+        ),
+        FamilyPoint.from_mapping(
+            "lognormal",
+            {"mean": 0.0, "sigma": 1.0},
+        ),
+        FamilyPoint.from_mapping(
+            "student_t",
+            {"df": 5.0, "mean": 0.0, "scale": 1.0},
+        ),
+        FamilyPoint.from_mapping(
+            "mixture_normal",
+            {
+                "weight": 0.9,
+                "mean1": 0.0,
+                "sd1": 1.0,
+                "mean2": 0.0,
+                "sd2": 5.0,
+                "mean": 0.0,
+            },
+        ),
+    )
+)
+```
+
+The order is not inferred by StatFuzz. It is a domain decision made explicitly by the user.
+
+`shrink_dgp_family` re-simulates every simpler canonical candidate, starting from the simplest. The first candidate that still satisfies the supplied FailureCriterion is accepted:
+
+```python
+result = shrink_dgp_family(
+    start=plan.levels[-1],
+    plan=plan,
+    evaluate=evaluate,
+    simulations=20_000,
+    root_seed=2030,
+)
+```
+
+Because every candidate is evaluated with a deterministic seed derived from the full serialized FamilyPoint, family shrinking is reproducible and auditable.
+
+The result stores:
+
+```text
+start family + parameters
+final family + parameters
+start result
+final result
+root seed
+simulation budget
+accepted/rejected family attempts
+criterion used
+```
+
+### Interpretation
+
+The final family is the simplest candidate **inside the explicit FamilyShrinkPlan** that preserved the criterion for the fixed seed and simulation budget.
+
+This is stronger than merely returning the first nearby family, but it is still not a proof that no simpler distribution exists outside the declared plan.
+
 ## Current scope
 
-The first shrinking layer works on scalar parameters already represented inside ParameterPoint. This covers sample sizes and numeric distribution parameters, and can also represent discrete scalar choices when the user supplies an ordering.
+v0.4 now supports both:
 
-Automatic **distribution-family simplification**—for example replacing a mixture distribution with a single-component family—is not implemented yet. That requires a richer representation than scalar ParameterPoint replacement and remains a later v0.4 milestone.
+- scalar parameter simplification through `ShrinkPlan`;
+- canonical cross-family simplification through `FamilyShrinkPlan`.
+
+The current family abstraction does not automatically learn a hierarchy, infer semantic equivalence between parameterizations, or search an unrestricted space of probability distributions. Those remain outside the current scope.
