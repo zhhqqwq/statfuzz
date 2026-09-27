@@ -43,3 +43,21 @@ def test_duplicate_candidates_are_rejected():
 def test_non_finite_float_is_rejected():
     with pytest.raises(ValueError, match="finite"):
         ParameterSpace({"sigma": [float("nan")]})
+
+
+def test_point_at_matches_iteration_order():
+    space = ParameterSpace({"a": [1, 2], "b": ["x", "y", "z"]})
+    iterated = list(space)
+
+    assert [space.point_at(i) for i in range(len(space))] == iterated
+
+
+def test_point_at_rejects_invalid_index():
+    space = ParameterSpace({"x": [1, 2]})
+
+    with pytest.raises(IndexError, match="outside"):
+        space.point_at(-1)
+    with pytest.raises(IndexError, match="outside"):
+        space.point_at(2)
+    with pytest.raises(TypeError, match="integer"):
+        space.point_at(1.5)
