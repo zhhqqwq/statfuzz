@@ -242,3 +242,66 @@ def test_find_counterexample_integration_with_lognormal():
     assert result.search_result.simulations == 100
     assert result.validation_result.simulations == 500
     assert result.validation.search_seed != result.validation.validation_seed
+
+
+def test_find_counterexample_can_use_random_search():
+    result = find_counterexample(
+        space=ParameterSpace({"x": list(range(20))}),
+        search_evaluate=lambda point, seed, simulations: StressTestResult(
+            method="fake",
+            metric="type1_error",
+            dgp1="fake",
+            dgp2="fake",
+            n1=10,
+            n2=10,
+            simulations=simulations,
+            seed=seed,
+            nominal=0.05,
+            empirical=0.05 + 0.001 * point["x"],
+            mcse=0.01,
+            tolerance=0.01,
+        ),
+        validation_evaluate=lambda point, seed, simulations: StressTestResult(
+            method="fake",
+            metric="type1_error",
+            dgp1="fake",
+            dgp2="fake",
+            n1=10,
+            n2=10,
+            simulations=simulations,
+            seed=seed,
+            nominal=0.05,
+            empirical=0.05 + 0.001 * point["x"],
+            mcse=0.004,
+            tolerance=0.01,
+        ),
+        budget=DiscoveryBudget(search_simulations=100, validation_simulations=500),
+        search_root_seed=123,
+        validation_root_seed=999,
+        search_draws=5,
+    )
+
+    assert len(result.search.records) == 5
+    assert result.search_result.simulations == 100
+    assert result.validation_result.simulations == 500
+    assert result.validation.search_seed != result.validation.validation_seed
+
+
+def test_find_counterexample_random_search_is_reproducible():
+    kwargs = {
+        "space": ParameterSpace({"x": list(range(30))}),
+        "search_evaluate": _search_result,
+        "validation_evaluate": _validation_result,
+        "budget": _budget(),
+        "search_root_seed": 11,
+        "validation_root_seed": 99,
+        "search_draws": 3,
+    }
+
+    a = find_counterexample(**kwargs)
+    b = find_counterexample(**kwargs)
+
+    assert [record.point for record in a.search.records] == [
+        record.point for record in b.search.records
+    ]
+    assert a.as_row() == b.as_row()
