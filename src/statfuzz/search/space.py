@@ -89,6 +89,27 @@ class ParameterSpace:
         for combination in itertools.product(*axes):
             yield ParameterPoint(tuple(zip(names, combination)))
 
+    def point_at(self, index: int) -> ParameterPoint:
+        """Return one point by canonical Cartesian-product index.
+
+        This provides O(number_of_parameters) random access without materializing
+        the full parameter space. The indexing order matches iteration order.
+        """
+
+        if not isinstance(index, int):
+            raise TypeError("index must be an integer")
+        size = len(self)
+        if index < 0 or index >= size:
+            raise IndexError(f"index {index} is outside ParameterSpace of size {size}")
+
+        remainder = index
+        items_reversed = []
+        for name, values in reversed(self._axes):
+            remainder, offset = divmod(remainder, len(values))
+            items_reversed.append((name, values[offset]))
+
+        return ParameterPoint(tuple(reversed(items_reversed)))
+
     def points(self) -> tuple[ParameterPoint, ...]:
         """Materialize all points. Prefer iteration for very large grids."""
         return tuple(self)
