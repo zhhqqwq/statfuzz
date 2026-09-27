@@ -108,18 +108,25 @@ The selected ParameterPoint is re-simulated with a new deterministic random stre
 ### High-level discovery
 
 ```python
-from statfuzz.search import find_counterexample
+from statfuzz.search import DiscoveryBudget, find_counterexample
+
+budget = DiscoveryBudget(
+    search_simulations=2_000,
+    validation_simulations=20_000,
+)
 
 discovery = find_counterexample(
     space=space,
     search_evaluate=search_evaluate,
     validation_evaluate=validation_evaluate,
+    budget=budget,
     search_root_seed=42,
     validation_root_seed=2026,
+    objective="absolute_deviation",
 )
 ```
 
-This composes grid search, top-candidate selection, and independent validation while retaining the full search table. The returned object represents a validated simulation candidate within the searched DGP family; it is not a mathematical proof of a universal counterexample.
+This composes grid search, objective-based candidate selection, and independent validation while retaining the full search table. `DiscoveryBudget` is executable: the requested search and validation simulation counts are passed into the evaluators and checked against the returned results. Built-in objectives include `absolute_deviation`, `positive_deviation`, and `negative_deviation`. The returned object represents a validated simulation candidate within the searched DGP family; it is not a mathematical proof of a universal counterexample.
 
 ## Statistical contract
 
