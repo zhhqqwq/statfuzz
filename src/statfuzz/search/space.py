@@ -3,8 +3,9 @@ from __future__ import annotations
 import itertools
 import json
 import math
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Mapping, TypeAlias
+from typing import TypeAlias
 
 JSONScalar: TypeAlias = str | int | float | bool | None
 
