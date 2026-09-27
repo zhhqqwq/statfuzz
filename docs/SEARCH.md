@@ -54,7 +54,7 @@ Custom objectives can implement a name and score(StressTestResult) method. Large
 
 This ranking is exploratory. Searching many points and selecting the largest observed deviation can select Monte Carlo noise as well as genuine finite-sample behavior.
 
-A later validation layer (Issue #3) will therefore re-run a selected candidate with an independent validation seed and a separate, usually larger, simulation budget. Search and validation estimates should be reported separately.
+The validation layer therefore re-runs a selected candidate with an independent validation seed and a separate, usually larger, simulation budget. Search and validation estimates are reported separately.
 
 
 ## Independent hold-out validation
@@ -181,3 +181,59 @@ def search_evaluate(point, seed, simulations):
 ```
 
 The same contract applies to the validation evaluator. StatFuzz rejects a result whose `StressTestResult.simulations` differs from the requested budget. This prevents documentation or metadata from claiming one Monte Carlo budget while the evaluator silently runs another.
+
+
+## Random search without replacement
+
+`random_search` targets finite ParameterSpace objects that are too large to evaluate exhaustively.
+
+```python
+from statfuzz.search import random_search
+
+search = random_search(
+    space=space,
+    evaluate=evaluate,
+    draws=100,
+    seed=42,
+    objective="absolute_deviation",
+)
+```
+
+It has four important properties:
+
+1. **No replacement.** A ParameterPoint is evaluated at most once within one random-search run.
+2. **Seed reproducibility.** The root seed deterministically controls the sampled flat indices.
+3. **Stable per-point evaluation seeds.** Once a point is selected, its evaluation seed is derived from the root seed and canonical point JSON, using the same rule as grid search.
+4. **No full-space materialization.** ParameterSpace.point_at(index) converts a flat Cartesian-product index to a ParameterPoint in O(number_of_parameters) time.
+
+The sampler uses a sparse partial Fisher-Yates shuffle. It stores only O(draws) swap entries instead of allocating an array of size len(space). The current unbiased index generator uses 64-bit draws, so spaces larger than 2**64 points are rejected explicitly.
+
+`RandomSearchResult` extends the common `SearchResult` interface and adds:
+
+```text
+sampled_indices
+space_size
+draws
+coverage_fraction
+```
+
+Because both GridSearchResult and RandomSearchResult share SearchResult, `validate_candidate` accepts either one.
+
+### Random search in high-level discovery
+
+`find_counterexample` remains exhaustive by default. Pass `search_draws` to switch its search stage to random search while keeping the same SearchObjective and DiscoveryBudget:
+
+```python
+discovery = find_counterexample(
+    space=space,
+    search_evaluate=search_evaluate,
+    validation_evaluate=validation_evaluate,
+    budget=budget,
+    search_root_seed=42,
+    validation_root_seed=2026,
+    objective="absolute_deviation",
+    search_draws=100,
+)
+```
+
+The search simulation budget still applies to every sampled point, and the independent validation budget still applies only to the selected candidate.
