@@ -2,10 +2,10 @@ import pytest
 
 from statfuzz import StressTestResult
 from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
-from statfuzz.search import ObjectiveThresholdCriterion
-from statfuzz.search.family import (
+from statfuzz.search import (
     FamilyPoint,
     FamilyShrinkPlan,
+    ObjectiveThresholdCriterion,
     shrink_dgp_family,
 )
 
