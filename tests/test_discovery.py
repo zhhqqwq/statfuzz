@@ -288,11 +288,43 @@ def test_find_counterexample_can_use_random_search():
 
 
 def test_find_counterexample_random_search_is_reproducible():
+    def search_evaluate(point, seed, simulations):
+        return StressTestResult(
+            method="fake",
+            metric="type1_error",
+            dgp1="fake",
+            dgp2="fake",
+            n1=10,
+            n2=10,
+            simulations=simulations,
+            seed=seed,
+            nominal=0.05,
+            empirical=0.05 + 0.001 * point["x"],
+            mcse=0.01,
+            tolerance=0.01,
+        )
+
+    def validation_evaluate(point, seed, simulations):
+        return StressTestResult(
+            method="fake",
+            metric="type1_error",
+            dgp1="fake",
+            dgp2="fake",
+            n1=10,
+            n2=10,
+            simulations=simulations,
+            seed=seed,
+            nominal=0.05,
+            empirical=0.05 + 0.001 * point["x"],
+            mcse=0.004,
+            tolerance=0.01,
+        )
+
     kwargs = {
         "space": ParameterSpace({"x": list(range(30))}),
-        "search_evaluate": _search_result,
-        "validation_evaluate": _validation_result,
-        "budget": _budget(),
+        "search_evaluate": search_evaluate,
+        "validation_evaluate": validation_evaluate,
+        "budget": DiscoveryBudget(search_simulations=100, validation_simulations=500),
         "search_root_seed": 11,
         "validation_root_seed": 99,
         "search_draws": 3,
