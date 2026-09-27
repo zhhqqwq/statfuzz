@@ -156,6 +156,32 @@ discovery = find_counterexample(
 
 该 API 会自动串联“完整网格或随机搜索 → Objective 排名 → 候选点选择 → 独立验证”，但仍保留完整搜索表和两阶段结果。`DiscoveryBudget` 会把搜索/验证 Monte Carlo 次数真正传给 evaluator，并核验返回结果使用了指定预算。这里的“counterexample”指**在明确搜索的 DGP 参数空间中，经搜索选中并由独立随机流重新估计的候选点**，不是对无限总体类别的数学证明。
 
+
+### 反例简化（shrinking）
+
+对于已经独立验证过的候选反例，可以显式声明“什么更简单”，然后逐步简化：
+
+```python
+from statfuzz.search import ShrinkDimension, ShrinkPlan, shrink_counterexample
+
+plan = ShrinkPlan(
+    (
+        ShrinkDimension("n", (4, 8, 12, 20)),
+        ShrinkDimension("sigma", (0.4, 0.8, 1.0, 1.4)),
+    )
+)
+
+shrunk = shrink_counterexample(
+    point=discovery.point,
+    plan=plan,
+    evaluate=shrink_evaluate,
+    simulations=20_000,
+    root_seed=2028,
+)
+```
+
+每个维度都按“**最简单 → 最复杂**”排列。StatFuzz 会重新模拟每一个简化 proposal，只有仍满足 failure criterion 的候选才会被接受，同时保留完整的接受/拒绝 trace。当前算法是确定性的 greedy simplification，不声称得到数学意义上的全局最小反例。详见 `docs/SHRINKING.md`。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。
