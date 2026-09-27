@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from ..result import StressTestResult
 from .budget import DiscoveryBudget
 from .grid import grid_search
+from .objective import ObjectiveLike
 from .random import random_search
 from .result import SearchResult
-from .objective import ObjectiveLike
 from .space import ParameterPoint, ParameterSpace
 from .validation import CandidateValidationResult, validate_candidate
 
