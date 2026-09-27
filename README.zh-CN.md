@@ -23,7 +23,8 @@ v0.1 已经提供：
 开发中的搜索层进一步加入：
 
 - `ParameterSpace`：声明有限、可序列化、确定性枚举的参数空间；
-- `grid_search`：遍历参数网格，保存每一个搜索点的完整统计结果；
+- `grid_search`：遍历完整参数网格；
+- `random_search`：对大型有限参数空间进行可复现的无放回抽样；
 - 可扩展的 `SearchObjective`，内置 `absolute_deviation`、`positive_deviation`、`negative_deviation`；
 - 基于根随机种子和参数点内容生成的独立、可复现子种子；
 - `DiscoveryBudget`：显式控制搜索阶段和独立验证阶段的 Monte Carlo 次数。
@@ -93,6 +94,30 @@ print(search.to_markdown())
 `grid_search` 会保留**全部搜索点**，而不是只返回“最差的那个”。这样既方便画 failure map，也避免把搜索过程隐藏成一个黑箱。
 
 
+### 随机搜索
+
+当有限参数空间很大时，可以不用完整遍历笛卡尔积，而是在其中**无放回抽样**：
+
+```python
+from statfuzz.search import random_search
+
+search = random_search(
+    space=space,
+    evaluate=evaluate,
+    draws=100,
+    seed=42,
+    objective="absolute_deviation",
+    # 可选：只随机搜索有限空间的一部分
+    # search_draws=100,
+)
+
+print(search.coverage_fraction)
+print(search.to_markdown())
+```
+
+`RandomSearchResult` 与 `GridSearchResult` 共享 `ranked()`、`to_rows()`、`to_markdown()` 等结果接口，并保留所有实际抽到的参数点和扁平索引。随机抽样采用确定性的稀疏 partial Fisher–Yates，因此辅助内存与 `draws` 成正比，不需要先构造完整参数空间。
+
+
 ### 独立验证候选反例
 
 ```python
@@ -129,7 +154,7 @@ discovery = find_counterexample(
 )
 ```
 
-该 API 会自动串联“网格搜索 → Objective 排名 → 候选点选择 → 独立验证”，但仍保留完整搜索表和两阶段结果。`DiscoveryBudget` 会把搜索/验证 Monte Carlo 次数真正传给 evaluator，并核验返回结果使用了指定预算。这里的“counterexample”指**在明确搜索的 DGP 参数空间中，经搜索选中并由独立随机流重新估计的候选点**，不是对无限总体类别的数学证明。
+该 API 会自动串联“完整网格或随机搜索 → Objective 排名 → 候选点选择 → 独立验证”，但仍保留完整搜索表和两阶段结果。`DiscoveryBudget` 会把搜索/验证 Monte Carlo 次数真正传给 evaluator，并核验返回结果使用了指定预算。这里的“counterexample”指**在明确搜索的 DGP 参数空间中，经搜索选中并由独立随机流重新估计的候选点**，不是对无限总体类别的数学证明。
 
 ## 为什么搜索层不直接创建 DGP？
 

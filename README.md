@@ -90,6 +90,30 @@ print(search.to_markdown())
 The result retains every evaluated point. Ranking by absolute deviation is explicitly exploratory; a selected candidate should be re-simulated with an independent validation budget before being presented as a confirmed counterexample. See `docs/SEARCH.md`.
 
 
+### Random search
+
+For a large finite parameter space, StatFuzz can sample points without replacement instead of materializing and evaluating the full Cartesian product:
+
+```python
+from statfuzz.search import random_search
+
+search = random_search(
+    space=space,
+    evaluate=evaluate,
+    draws=100,
+    seed=42,
+    objective="absolute_deviation",
+    # Optional: sample only part of the finite space.
+    # search_draws=100,
+)
+
+print(search.coverage_fraction)
+print(search.to_markdown())
+```
+
+`RandomSearchResult` shares the same ranking/table interface as `GridSearchResult`, retains every sampled point, and records the sampled flat indices. Sampling uses deterministic sparse partial Fisher-Yates selection, so it requires O(draws) auxiliary memory rather than O(len(space)).
+
+
 ### Independent candidate validation
 
 ```python
@@ -126,7 +150,7 @@ discovery = find_counterexample(
 )
 ```
 
-This composes grid search, objective-based candidate selection, and independent validation while retaining the full search table. `DiscoveryBudget` is executable: the requested search and validation simulation counts are passed into the evaluators and checked against the returned results. Built-in objectives include `absolute_deviation`, `positive_deviation`, and `negative_deviation`. The returned object represents a validated simulation candidate within the searched DGP family; it is not a mathematical proof of a universal counterexample.
+This composes either exhaustive grid search or optional random search, objective-based candidate selection, and independent validation while retaining every evaluated search point. `DiscoveryBudget` is executable: the requested search and validation simulation counts are passed into the evaluators and checked against the returned results. Built-in objectives include `absolute_deviation`, `positive_deviation`, and `negative_deviation`. The returned object represents a validated simulation candidate within the searched DGP family; it is not a mathematical proof of a universal counterexample.
 
 ## Statistical contract
 

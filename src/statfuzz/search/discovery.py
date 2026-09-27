@@ -5,8 +5,10 @@ from dataclasses import dataclass
 
 from ..result import StressTestResult
 from .budget import DiscoveryBudget
-from .grid import GridSearchResult, grid_search
+from .grid import grid_search
 from .objective import ObjectiveLike
+from .random import random_search
+from .result import SearchResult
 from .space import ParameterPoint, ParameterSpace
 from .validation import CandidateValidationResult, validate_candidate
 
@@ -17,7 +19,7 @@ DiscoveryEvaluator = Callable[[ParameterPoint, int, int], StressTestResult]
 class CounterexampleDiscoveryResult:
     """Complete search and independent-validation record for one discovery run."""
 
-    search: GridSearchResult
+    search: SearchResult
     validation: CandidateValidationResult
     budget: DiscoveryBudget
 
@@ -78,12 +80,15 @@ def find_counterexample(
     search_root_seed: int = 0,
     validation_root_seed: int = 1,
     objective: ObjectiveLike = "absolute_deviation",
+    search_draws: int | None = None,
 ) -> CounterexampleDiscoveryResult:
     """Search a finite parameter space and independently validate the top candidate.
 
     The discovery budget is executable: its search simulation count is passed
     into every search evaluation and its validation count is passed into the
-    independent validation evaluation.
+    independent validation evaluation. If search_draws is None, discovery uses
+    exhaustive grid search. Otherwise it samples search_draws points without
+    replacement using random_search.
 
     The returned object keeps the complete search table and both stage-specific
     Monte Carlo estimates. It does not merge the estimates or claim a
@@ -117,12 +122,21 @@ def find_counterexample(
             stage="validation",
         )
 
-    search = grid_search(
-        space=space,
-        evaluate=search_stage,
-        seed=search_root_seed,
-        objective=objective,
-    )
+    if search_draws is None:
+        search = grid_search(
+            space=space,
+            evaluate=search_stage,
+            seed=search_root_seed,
+            objective=objective,
+        )
+    else:
+        search = random_search(
+            space=space,
+            evaluate=search_stage,
+            draws=search_draws,
+            seed=search_root_seed,
+            objective=objective,
+        )
     validation = validate_candidate(
         search=search,
         evaluate=validation_stage,

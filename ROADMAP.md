@@ -23,7 +23,7 @@ Goal: move from one manually chosen DGP to a reproducible failure-region search.
 
 - [x] parameter-space abstraction
 - [x] grid search
-- [ ] random search
+- [x] random search
 - [x] tabular search results
 - [ ] multiple-comparison-aware reporting of search findings
 
