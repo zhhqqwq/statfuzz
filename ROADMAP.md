@@ -21,10 +21,10 @@ Goal: establish a small, auditable statistical core.
 
 Goal: move from one manually chosen DGP to a reproducible failure-region search.
 
-- [ ] parameter-space abstraction
-- [ ] grid search
+- [x] parameter-space abstraction
+- [x] grid search
 - [ ] random search
-- [ ] tabular search results
+- [x] tabular search results
 - [ ] multiple-comparison-aware reporting of search findings
 
 ## v0.3 — Counterexample discovery
