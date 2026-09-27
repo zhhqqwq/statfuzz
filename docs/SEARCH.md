@@ -40,11 +40,17 @@ The evaluator is required to pass this child seed into stress_test.
 
 ## Search result versus statistical confirmation
 
-grid_search returns every evaluated point and can rank them by
+grid_search returns every evaluated point and ranks through a SearchObjective.
+
+Built-in objectives are:
 
 ```text
 absolute_deviation = abs(empirical - nominal)
+positive_deviation = empirical - nominal
+negative_deviation = nominal - empirical
 ```
+
+Custom objectives can implement a name and score(StressTestResult) method. Larger objective scores always rank first. Every search row records both the objective name and its score.
 
 This ranking is exploratory. Searching many points and selecting the largest observed deviation can select Monte Carlo noise as well as genuine finite-sample behavior.
 
@@ -89,7 +95,7 @@ The API rejects reuse of the same root seed. It also verifies that the validatio
 
 Independent validation reduces the risk that a candidate looks extreme only because it was selected as the maximum over noisy search estimates. It does not by itself prove a universal mathematical counterexample. Important findings should still be interpreted in terms of the chosen DGP family, parameter space, simulation budget, uncertainty, and failure criterion.
 
-A future find_counterexample API will combine candidate discovery and this validation stage while keeping the two estimates distinct.
+The high-level find_counterexample API combines candidate discovery and this validation stage while keeping the two estimates distinct.
 
 
 ## High-level counterexample discovery
@@ -112,18 +118,25 @@ validate_candidate
 For the common case, `find_counterexample` now performs that orchestration while preserving both underlying result objects:
 
 ```python
-from statfuzz.search import find_counterexample
+from statfuzz.search import DiscoveryBudget, find_counterexample
+
+budget = DiscoveryBudget(
+    search_simulations=2_000,
+    validation_simulations=20_000,
+)
 
 discovery = find_counterexample(
     space=space,
     search_evaluate=search_evaluate,
     validation_evaluate=validation_evaluate,
+    budget=budget,
     search_root_seed=42,
     validation_root_seed=2026,
+    objective="absolute_deviation",
 )
 ```
 
-The function currently uses the documented `absolute_deviation` objective, selects rank 0 from the complete grid search, and independently validates that exact ParameterPoint.
+The function accepts any supported SearchObjective, selects rank 0 from the complete grid search under that objective, and independently validates that exact ParameterPoint. Its DiscoveryBudget is executable: search and validation simulation counts are passed into the corresponding evaluators, and StatFuzz checks that each returned StressTestResult reports the requested simulation count.
 
 The returned `CounterexampleDiscoveryResult` contains:
 
@@ -141,3 +154,30 @@ At this stage, "counterexample" means:
 > a parameter point within the explicitly searched DGP family that was selected by the search objective and then re-estimated using an independent validation random stream.
 
 It does not mean that StatFuzz has proved the statistical method fails for every related distribution, every nearby parameter point, or an unrestricted population class. Shrinking, broader search strategies, and richer uncertainty reporting are later roadmap items.
+
+
+## Discovery budgets
+
+`DiscoveryBudget` makes the two Monte Carlo stages explicit:
+
+```python
+from statfuzz.search import DiscoveryBudget
+
+budget = DiscoveryBudget(
+    search_simulations=2_000,
+    validation_simulations=20_000,
+)
+```
+
+High-level discovery evaluators receive three arguments:
+
+```python
+def search_evaluate(point, seed, simulations):
+    return stress_test(
+        ...,
+        simulations=simulations,
+        seed=seed,
+    )
+```
+
+The same contract applies to the validation evaluator. StatFuzz rejects a result whose `StressTestResult.simulations` differs from the requested budget. This prevents documentation or metadata from claiming one Monte Carlo budget while the evaluator silently runs another.

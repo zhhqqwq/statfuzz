@@ -37,7 +37,7 @@ def test_grid_search_ranking_is_stable_and_documented():
     result = grid_search(space=space, evaluate=_fake_result, seed=42)
 
     assert [record.point["x"] for record in result.ranked()] == [3, 2, 1]
-    assert result.objective == "absolute_deviation"
+    assert result.objective_name == "absolute_deviation"
 
 
 def test_same_root_seed_reproduces_per_point_seeds():
@@ -67,6 +67,8 @@ def test_rows_contain_statistical_search_columns():
     assert row["absolute_deviation"] == pytest.approx(0.01)
     assert row["simulations"] == 100
     assert isinstance(row["seed"], int)
+    assert row["objective"] == "absolute_deviation"
+    assert row["objective_score"] == pytest.approx(0.01)
 
 
 def test_integration_with_lognormal_stress_test():
@@ -88,3 +90,59 @@ def test_integration_with_lognormal_stress_test():
     assert len(result.records) == 2
     assert all(record.result.simulations == 100 for record in result.records)
     assert all(record.result.seed == record.seed for record in result.records)
+
+
+def test_positive_deviation_objective_prefers_largest_positive_error():
+    result = grid_search(
+        space=ParameterSpace({"x": [1, 2, 3]}),
+        evaluate=_fake_result,
+        seed=42,
+        objective="positive_deviation",
+    )
+
+    assert [record.point["x"] for record in result.ranked()] == [2, 1, 3]
+
+
+def test_negative_deviation_objective_prefers_largest_negative_error():
+    result = grid_search(
+        space=ParameterSpace({"x": [1, 2, 3]}),
+        evaluate=_fake_result,
+        seed=42,
+        objective="negative_deviation",
+    )
+
+    assert [record.point["x"] for record in result.ranked()] == [3, 1, 2]
+
+
+def test_custom_objective_is_supported():
+    class LargestEmpirical:
+        name = "largest_empirical"
+
+        def score(self, result):
+            return result.empirical
+
+    result = grid_search(
+        space=ParameterSpace({"x": [1, 2, 3]}),
+        evaluate=_fake_result,
+        seed=42,
+        objective=LargestEmpirical(),
+    )
+
+    assert result.objective_name == "largest_empirical"
+    assert [record.point["x"] for record in result.ranked()] == [2, 1, 3]
+
+
+def test_non_finite_objective_score_is_rejected():
+    class BadObjective:
+        name = "bad"
+
+        def score(self, result):
+            return float("nan")
+
+    with pytest.raises(ValueError, match="non-finite"):
+        grid_search(
+            space=ParameterSpace({"x": [1]}),
+            evaluate=_fake_result,
+            seed=42,
+            objective=BadObjective(),
+        )

@@ -4,11 +4,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from ..result import StressTestResult
-from .grid import GridSearchResult, Objective, grid_search
+from .budget import DiscoveryBudget
+from .grid import GridSearchResult, grid_search
+from .objective import ObjectiveLike
 from .space import ParameterPoint, ParameterSpace
 from .validation import CandidateValidationResult, validate_candidate
 
-DiscoveryEvaluator = Callable[[ParameterPoint, int], StressTestResult]
+DiscoveryEvaluator = Callable[[ParameterPoint, int, int], StressTestResult]
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,7 @@ class CounterexampleDiscoveryResult:
 
     search: GridSearchResult
     validation: CandidateValidationResult
+    budget: DiscoveryBudget
 
     @property
     def point(self) -> ParameterPoint:
@@ -32,13 +35,38 @@ class CounterexampleDiscoveryResult:
 
     def as_row(self) -> dict[str, object]:
         row = self.validation.as_row()
+        selected = self.search.ranked()[self.validation.candidate_rank]
         row.update(
             {
-                "objective": self.search.objective,
+                "objective": self.search.objective_name,
+                "objective_score": selected.objective_score(self.search.objective),
                 "search_points": len(self.search.records),
+                "search_budget": self.budget.search_simulations,
+                "validation_budget": self.budget.validation_simulations,
             }
         )
         return row
+
+
+def _run_budgeted(
+    *,
+    evaluate: DiscoveryEvaluator,
+    point: ParameterPoint,
+    seed: int,
+    simulations: int,
+    stage: str,
+) -> StressTestResult:
+    result = evaluate(point, seed, simulations)
+    if not isinstance(result, StressTestResult):
+        raise TypeError(
+            f"{stage} evaluator must return a StressTestResult"
+        )
+    if result.simulations != simulations:
+        raise ValueError(
+            f"{stage} evaluator returned simulations={result.simulations}, "
+            f"expected the requested budget {simulations}"
+        )
+    return result
 
 
 def find_counterexample(
@@ -46,15 +74,16 @@ def find_counterexample(
     space: ParameterSpace,
     search_evaluate: DiscoveryEvaluator,
     validation_evaluate: DiscoveryEvaluator,
+    budget: DiscoveryBudget,
     search_root_seed: int = 0,
     validation_root_seed: int = 1,
-    objective: Objective = "absolute_deviation",
+    objective: ObjectiveLike = "absolute_deviation",
 ) -> CounterexampleDiscoveryResult:
     """Search a finite parameter space and independently validate the top candidate.
 
-    The search stage evaluates every point using search_root_seed and the
-    requested exploratory objective. The top-ranked point is then re-simulated
-    with validation_root_seed through the independent validation API.
+    The discovery budget is executable: its search simulation count is passed
+    into every search evaluation and its validation count is passed into the
+    independent validation evaluation.
 
     The returned object keeps the complete search table and both stage-specific
     Monte Carlo estimates. It does not merge the estimates or claim a
@@ -68,17 +97,41 @@ def find_counterexample(
     if search_root_seed == validation_root_seed:
         raise ValueError("search_root_seed and validation_root_seed must differ")
 
+    def search_stage(point: ParameterPoint, seed: int | None) -> StressTestResult:
+        if seed is None:
+            raise RuntimeError("search seed unexpectedly resolved to None")
+        return _run_budgeted(
+            evaluate=search_evaluate,
+            point=point,
+            seed=seed,
+            simulations=budget.search_simulations,
+            stage="search",
+        )
+
+    def validation_stage(point: ParameterPoint, seed: int) -> StressTestResult:
+        return _run_budgeted(
+            evaluate=validation_evaluate,
+            point=point,
+            seed=seed,
+            simulations=budget.validation_simulations,
+            stage="validation",
+        )
+
     search = grid_search(
         space=space,
-        evaluate=search_evaluate,
+        evaluate=search_stage,
         seed=search_root_seed,
         objective=objective,
     )
     validation = validate_candidate(
         search=search,
-        evaluate=validation_evaluate,
+        evaluate=validation_stage,
         validation_root_seed=validation_root_seed,
         rank=0,
     )
 
-    return CounterexampleDiscoveryResult(search=search, validation=validation)
+    return CounterexampleDiscoveryResult(
+        search=search,
+        validation=validation,
+        budget=budget,
+    )

@@ -24,8 +24,9 @@ v0.1 已经提供：
 
 - `ParameterSpace`：声明有限、可序列化、确定性枚举的参数空间；
 - `grid_search`：遍历参数网格，保存每一个搜索点的完整统计结果；
-- 稳定的 `absolute_deviation` 排序；
-- 基于根随机种子和参数点内容生成的独立、可复现子种子。
+- 可扩展的 `SearchObjective`，内置 `absolute_deviation`、`positive_deviation`、`negative_deviation`；
+- 基于根随机种子和参数点内容生成的独立、可复现子种子；
+- `DiscoveryBudget`：显式控制搜索阶段和独立验证阶段的 Monte Carlo 次数。
 
 ## 快速开始
 
@@ -110,18 +111,25 @@ validated = validate_candidate(
 ### 高层自动反例发现
 
 ```python
-from statfuzz.search import find_counterexample
+from statfuzz.search import DiscoveryBudget, find_counterexample
+
+budget = DiscoveryBudget(
+    search_simulations=2_000,
+    validation_simulations=20_000,
+)
 
 discovery = find_counterexample(
     space=space,
     search_evaluate=search_evaluate,
     validation_evaluate=validation_evaluate,
+    budget=budget,
     search_root_seed=42,
     validation_root_seed=2026,
+    objective="absolute_deviation",
 )
 ```
 
-该 API 会自动串联“网格搜索 → 选择排名第一的候选点 → 独立验证”，但仍保留完整搜索表和两阶段结果。这里的“counterexample”指**在明确搜索的 DGP 参数空间中，经搜索选中并由独立随机流重新估计的候选点**，不是对无限总体类别的数学证明。
+该 API 会自动串联“网格搜索 → Objective 排名 → 候选点选择 → 独立验证”，但仍保留完整搜索表和两阶段结果。`DiscoveryBudget` 会把搜索/验证 Monte Carlo 次数真正传给 evaluator，并核验返回结果使用了指定预算。这里的“counterexample”指**在明确搜索的 DGP 参数空间中，经搜索选中并由独立随机流重新估计的候选点**，不是对无限总体类别的数学证明。
 
 ## 为什么搜索层不直接创建 DGP？
 
