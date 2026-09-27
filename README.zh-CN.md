@@ -106,6 +106,23 @@ validated = validate_candidate(
 
 验证阶段会对搜索选中的**同一个 ParameterPoint**使用新的 root seed，并生成新的确定性子 seed。返回对象会同时保留搜索与验证阶段的经验估计、MCSE、simulation budget 和随机种子，而不会把两次结果合并成一个数字。
 
+
+### 高层自动反例发现
+
+```python
+from statfuzz.search import find_counterexample
+
+discovery = find_counterexample(
+    space=space,
+    search_evaluate=search_evaluate,
+    validation_evaluate=validation_evaluate,
+    search_root_seed=42,
+    validation_root_seed=2026,
+)
+```
+
+该 API 会自动串联“网格搜索 → 选择排名第一的候选点 → 独立验证”，但仍保留完整搜索表和两阶段结果。这里的“counterexample”指**在明确搜索的 DGP 参数空间中，经搜索选中并由独立随机流重新估计的候选点**，不是对无限总体类别的数学证明。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。
