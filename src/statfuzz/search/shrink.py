@@ -262,7 +262,7 @@ def shrink_counterexample(
     evaluate: ShrinkEvaluator,
     simulations: int,
     root_seed: int = 0,
-    criterion: FailureCriterion = OutsideToleranceCriterion(),
+    criterion: FailureCriterion | None = None,
 ) -> CounterexampleShrinkResult:
     """Greedily simplify a validated candidate while preserving a failure rule.
 
@@ -280,7 +280,11 @@ def shrink_counterexample(
         raise ValueError("simulations must be positive")
     if root_seed < 0:
         raise ValueError("root_seed must be non-negative")
-    if not criterion.name:
+
+    resolved_criterion = (
+        OutsideToleranceCriterion() if criterion is None else criterion
+    )
+    if not resolved_criterion.name:
         raise ValueError("criterion.name must be non-empty")
 
     plan.validate_point(point)
@@ -291,7 +295,7 @@ def shrink_counterexample(
         root_seed=root_seed,
         stage="start",
     )
-    if not criterion.is_failure(start_result):
+    if not resolved_criterion.is_failure(start_result):
         raise ValueError(
             "starting point does not satisfy the failure criterion "
             "under the shrink-stage evaluation"
@@ -320,7 +324,7 @@ def shrink_counterexample(
                     root_seed=root_seed,
                     stage="shrink",
                 )
-                preserved = criterion.is_failure(proposal_result)
+                preserved = resolved_criterion.is_failure(proposal_result)
 
                 steps.append(
                     ShrinkStep(
@@ -333,7 +337,7 @@ def shrink_counterexample(
                         result=proposal_result,
                         seed=proposal_seed,
                         accepted=preserved,
-                        criterion_name=criterion.name,
+                        criterion_name=resolved_criterion.name,
                     )
                 )
 
@@ -354,7 +358,7 @@ def shrink_counterexample(
         final_result=current_result,
         steps=tuple(steps),
         plan=plan,
-        criterion_name=criterion.name,
+        criterion_name=resolved_criterion.name,
         root_seed=root_seed,
         simulations=simulations,
     )
