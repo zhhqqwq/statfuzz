@@ -132,7 +132,7 @@ class StatCISuiteResult:
     def from_json(cls, payload: str) -> StatCISuiteResult:
         data = json.loads(payload)
         if not isinstance(data, dict):
-            raise ValueError("suite JSON must contain an object")
+            raise TypeError("suite JSON must contain an object")
         return cls.from_dict(data)
 
     @classmethod
