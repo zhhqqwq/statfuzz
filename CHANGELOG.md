@@ -7,6 +7,19 @@ policy.
 
 ## [Unreleased]
 
+### Fixed
+
+- Reject non-finite built-in DGP parameters, generated samples, Welch intermediates, and
+  invalid p-values instead of silently counting invalid simulations as non-rejections.
+- Preserve structured DGP family/parameter identity so rounded human-readable names
+  cannot cause false StatCI baseline matches.
+
+### Changed
+
+- StatCI JSON schema is now 1.1; schema 1.0 remains readable, but legacy display-only
+  baselines do not silently match newly structured results.
+- Report JSON schema is now 1.2 and includes structured DGP identities.
+
 ## [0.1.0] - 2026-09-28
 
 ### Added

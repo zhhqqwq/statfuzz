@@ -5,9 +5,11 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..dgp.base import DGPIdentity
 from ..result import StressTestResult
 
-STATCI_SCHEMA_VERSION = "1.0"
+STATCI_SCHEMA_VERSION = "1.1"
+_SUPPORTED_STATCI_SCHEMA_VERSIONS = {"1.0", STATCI_SCHEMA_VERSION}
 
 
 def _finite(name: str, value: object) -> float:
@@ -40,6 +42,8 @@ class StatCIResult:
     simulations: int
     seed: int | None
     mcse: float
+    dgp1_identity: DGPIdentity | None = None
+    dgp2_identity: DGPIdentity | None = None
     schema_version: str = STATCI_SCHEMA_VERSION
 
     @property
@@ -62,6 +66,16 @@ class StatCIResult:
                 "metric": self.metric,
                 "dgp1": self.dgp1,
                 "dgp2": self.dgp2,
+                "dgp1_identity": (
+                    None
+                    if self.dgp1_identity is None
+                    else self.dgp1_identity.as_dict()
+                ),
+                "dgp2_identity": (
+                    None
+                    if self.dgp2_identity is None
+                    else self.dgp2_identity.as_dict()
+                ),
                 "n1": self.n1,
                 "n2": self.n2,
                 "simulations": self.simulations,
@@ -95,9 +109,10 @@ class StatCIResult:
 
         if not isinstance(data, dict):
             raise TypeError("StatCIResult payload must be a dictionary")
-        if data.get("schema_version") != STATCI_SCHEMA_VERSION:
+        schema_version = data.get("schema_version")
+        if schema_version not in _SUPPORTED_STATCI_SCHEMA_VERSIONS:
             raise ValueError(
-                f"unsupported StatCI schema_version: {data.get('schema_version')!r}"
+                f"unsupported StatCI schema_version: {schema_version!r}"
             )
 
         evidence = data.get("evidence")
@@ -109,6 +124,8 @@ class StatCIResult:
         method = evidence.get("method")
         dgp1 = evidence.get("dgp1")
         dgp2 = evidence.get("dgp2")
+        raw_dgp1_identity = evidence.get("dgp1_identity")
+        raw_dgp2_identity = evidence.get("dgp2_identity")
         if not isinstance(property_name, str) or not property_name:
             raise ValueError("property must be a non-empty string")
         if not isinstance(metric, str) or not metric:
@@ -118,6 +135,17 @@ class StatCIResult:
         for name, value in (("method", method), ("dgp1", dgp1), ("dgp2", dgp2)):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"evidence.{name} must be a non-empty string")
+
+        dgp1_identity = (
+            None
+            if raw_dgp1_identity is None
+            else DGPIdentity.from_dict(raw_dgp1_identity)
+        )
+        dgp2_identity = (
+            None
+            if raw_dgp2_identity is None
+            else DGPIdentity.from_dict(raw_dgp2_identity)
+        )
 
         passed = data.get("passed")
         if not isinstance(passed, bool):
@@ -183,6 +211,8 @@ class StatCIResult:
             simulations=simulations,
             seed=seed,
             mcse=mcse,
+            dgp1_identity=dgp1_identity,
+            dgp2_identity=dgp2_identity,
         )
 
 
@@ -243,4 +273,6 @@ class StatisticalAssertion:
             simulations=result.simulations,
             seed=result.seed,
             mcse=mcse,
+            dgp1_identity=result.dgp1_identity,
+            dgp2_identity=result.dgp2_identity,
         )

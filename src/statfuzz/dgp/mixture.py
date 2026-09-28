@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .base import DGPIdentity, _require_finite
+
 
 @dataclass(frozen=True)
 class MixtureNormal:
@@ -17,6 +19,13 @@ class MixtureNormal:
     mean: float = 0.0
 
     def __post_init__(self) -> None:
+        for name in ("weight", "mean1", "sd1", "mean2", "sd2", "mean"):
+            object.__setattr__(
+                self,
+                name,
+                _require_finite(name, getattr(self, name)),
+            )
+
         if not 0 < self.weight < 1:
             raise ValueError("weight must be strictly between 0 and 1")
         if self.sd1 <= 0 or self.sd2 <= 0:
@@ -28,6 +37,20 @@ class MixtureNormal:
             "MixtureNormal("
             f"weight={self.weight:g}, mean1={self.mean1:g}, sd1={self.sd1:g}, "
             f"mean2={self.mean2:g}, sd2={self.sd2:g}, mean={self.mean:g})"
+        )
+
+    @property
+    def identity(self) -> DGPIdentity:
+        return DGPIdentity.from_mapping(
+            "statfuzz.dgp.MixtureNormal",
+            {
+                "mean": self.mean,
+                "mean1": self.mean1,
+                "mean2": self.mean2,
+                "sd1": self.sd1,
+                "sd2": self.sd2,
+                "weight": self.weight,
+            },
         )
 
     def sample(self, rng: np.random.Generator, n: int) -> np.ndarray:

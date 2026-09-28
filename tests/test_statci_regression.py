@@ -9,10 +9,17 @@ from statfuzz import (
     StatCIResult,
     StatCISuiteResult,
     assert_regression_suite,
+    check_property,
     compare_suites,
+    stress_test,
     write_regression_summary,
 )
-from statfuzz.statci import compare_results, render_regression_summary
+from statfuzz.dgp import Normal
+from statfuzz.statci import (
+    StatCIComparisonKey,
+    compare_results,
+    render_regression_summary,
+)
 
 
 def _result(
@@ -403,3 +410,73 @@ def test_independent_formula_is_smaller_than_conservative_for_positive_mcse():
     assert conservative.uncertainty_scale == pytest.approx(0.007)
     assert independent.uncertainty_scale == pytest.approx(math.sqrt(0.000025))
     assert independent.uncertainty_scale < conservative.uncertainty_scale
+
+
+def test_structured_dgp_identity_prevents_display_name_collision():
+    first_stress = stress_test(
+        method="welch_ttest",
+        metric="type1_error",
+        dgp=Normal(sd=1.0000001),
+        simulations=20,
+        seed=101,
+    )
+    second_stress = stress_test(
+        method="welch_ttest",
+        metric="type1_error",
+        dgp=Normal(sd=1.0000002),
+        simulations=20,
+        seed=102,
+    )
+
+    assert first_stress.dgp1 == second_stress.dgp1 == "Normal(mean=0, sd=1)"
+
+    first = check_property(
+        first_stress,
+        property="type1_error",
+        target=0.05,
+        tolerance=0.1,
+    )
+    second = check_property(
+        second_stress,
+        property="type1_error",
+        target=0.05,
+        tolerance=0.1,
+    )
+
+    first_key = StatCIComparisonKey.from_result(first)
+    second_key = StatCIComparisonKey.from_result(second)
+
+    assert first_key.dgp1_display == second_key.dgp1_display
+    assert first_key.dgp1_identity != second_key.dgp1_identity
+
+    with pytest.raises(ValueError, match="same comparison key"):
+        compare_results(first, second)
+
+
+def test_legacy_display_only_result_does_not_match_structured_result():
+    legacy = _result(
+        dgp1="Normal(mean=0, sd=1)",
+        dgp2="Normal(mean=0, sd=1)",
+    )
+    current_stress = stress_test(
+        method="welch_ttest",
+        metric="type1_error",
+        dgp=Normal(),
+        simulations=20,
+        seed=103,
+    )
+    current = check_property(
+        current_stress,
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    legacy_key = StatCIComparisonKey.from_result(legacy)
+    current_key = StatCIComparisonKey.from_result(current)
+
+    assert legacy_key.dgp1_identity.startswith("legacy-display:")
+    assert not current_key.dgp1_identity.startswith("legacy-display:")
+
+    with pytest.raises(ValueError, match="same comparison key"):
+        compare_results(legacy, current)

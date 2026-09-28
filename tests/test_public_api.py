@@ -11,7 +11,6 @@ def _assert_public_api(module, expected):
 
 
 def test_package_version_matches_distribution_metadata():
-    assert statfuzz.__version__ == "0.1.0"
     assert version("statfuzz") == statfuzz.__version__
 
 
@@ -47,6 +46,7 @@ def test_top_level_public_api_is_intentionally_small():
 
 def test_dgp_namespace_public_api():
     expected = {
+        "DGPIdentity",
         "DataGenerator",
         "LogNormal",
         "MixtureNormal",

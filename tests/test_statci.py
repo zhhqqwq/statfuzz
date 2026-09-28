@@ -10,6 +10,7 @@ from statfuzz import (
     assert_property,
     check_property,
 )
+from statfuzz.dgp import DGPIdentity
 from statfuzz.statci import STATCI_SCHEMA_VERSION
 
 
@@ -20,6 +21,7 @@ def _result(
     mcse=0.002,
     simulations=10_000,
     seed=42,
+    dgp_identity=None,
 ):
     return StressTestResult(
         method="welch_ttest",
@@ -34,6 +36,8 @@ def _result(
         empirical=empirical,
         mcse=mcse,
         tolerance=0.01,
+        dgp1_identity=dgp_identity,
+        dgp2_identity=dgp_identity,
     )
 
 
@@ -228,3 +232,23 @@ def test_statistical_assertion_can_be_reused():
 
     assert passing.passed
     assert not failing.passed
+
+
+def test_statci_json_preserves_structured_dgp_identity():
+    identity = DGPIdentity.from_mapping(
+        "statfuzz.dgp.Normal",
+        {"mean": 0.0, "sd": 1.0000001},
+    )
+    result = check_property(
+        _result(dgp_identity=identity),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    parsed = json.loads(result.to_json())
+
+    assert result.dgp1_identity == identity
+    assert result.dgp2_identity == identity
+    assert parsed["evidence"]["dgp1_identity"] == identity.as_dict()
+    assert parsed["evidence"]["dgp2_identity"] == identity.as_dict()

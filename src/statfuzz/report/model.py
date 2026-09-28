@@ -21,7 +21,7 @@ from ..search.validation import CandidateValidationResult
 if TYPE_CHECKING:
     from .map import FailureMap2D
 
-REPORT_SCHEMA_VERSION = "1.1"
+REPORT_SCHEMA_VERSION = "1.2"
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,8 @@ class StressTestSnapshot:
     metric: str
     dgp1: str
     dgp2: str
+    dgp1_identity: dict[str, object] | None
+    dgp2_identity: dict[str, object] | None
     n1: int
     n2: int
     simulations: int
@@ -48,6 +50,16 @@ class StressTestSnapshot:
             metric=result.metric,
             dgp1=result.dgp1,
             dgp2=result.dgp2,
+            dgp1_identity=(
+                None
+                if result.dgp1_identity is None
+                else result.dgp1_identity.as_dict()
+            ),
+            dgp2_identity=(
+                None
+                if result.dgp2_identity is None
+                else result.dgp2_identity.as_dict()
+            ),
             n1=result.n1,
             n2=result.n2,
             simulations=result.simulations,
@@ -66,6 +78,8 @@ class StressTestSnapshot:
             "metric": self.metric,
             "dgp1": self.dgp1,
             "dgp2": self.dgp2,
+            "dgp1_identity": self.dgp1_identity,
+            "dgp2_identity": self.dgp2_identity,
             "n1": self.n1,
             "n2": self.n2,
             "simulations": self.simulations,

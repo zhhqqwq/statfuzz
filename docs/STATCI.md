@@ -71,7 +71,7 @@ This separates the statistical contract from any one experiment.
 
 ## Machine-readable result
 
-Every check produces a `StatCIResult` with schema version `1.0`.
+Every new check produces a `StatCIResult` with schema version `1.1`. Legacy schema `1.0` payloads remain readable.
 
 ```python
 ci_result.write_json("statci-result.json")
@@ -93,6 +93,7 @@ evidence
   method
   metric
   dgp1 / dgp2
+  dgp1_identity / dgp2_identity
   n1 / n2
   simulations
   seed
@@ -383,8 +384,8 @@ target
 tolerance
 method
 metric
-dgp1
-dgp2
+structured dgp1 identity
+structured dgp2 identity
 n1
 n2
 ```
@@ -567,3 +568,18 @@ Implemented:
 - regression JSON / GitHub summary / CI gate.
 
 The main v0.6 roadmap is now complete. Future extensions may add richer uncertainty-aware assertion families, baseline management workflows, or repeated-run models.
+
+
+### DGP identity and legacy baselines
+
+StatCI 1.1 separates human-readable DGP labels from machine identity. Built-in DGPs
+record a canonical family name and their full-precision scalar parameters.
+
+Regression matching uses the canonical identity, not the formatted display label.
+This prevents different experiments such as `Normal(sd=1.0000001)` and
+`Normal(sd=1.0000002)` from matching merely because both display as `sd=1`.
+
+Schema-1.0 suites can still be loaded. Because they do not contain structured DGP
+identity, they use an explicit `legacy-display:` identity fallback. A legacy result
+therefore does not silently match a newly generated structured result; regenerate the
+baseline before performing a strict new-vs-old regression comparison.
