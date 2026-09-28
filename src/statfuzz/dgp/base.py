@@ -10,6 +10,13 @@ import numpy as np
 IdentityScalar: TypeAlias = str | int | float | bool | None
 
 
+def _require_finite(name: str, value: float) -> float:
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise ValueError(f"{name} must be finite")
+    return numeric
+
+
 def _validate_identity_scalar(name: str, value: IdentityScalar) -> IdentityScalar:
     if isinstance(value, float) and not math.isfinite(value):
         raise ValueError(f"DGP identity parameter {name!r} must be finite")
