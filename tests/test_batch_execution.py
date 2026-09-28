@@ -141,3 +141,34 @@ def test_stress_test_rejects_invalid_batch_size(batch_size):
             simulations=2,
             batch_size=batch_size,
         )
+
+
+class _OverflowOnThirdReplicate:
+    name = "overflow-on-third"
+    population_mean = 0.0
+
+    def __init__(self):
+        self.calls = 0
+
+    def sample(self, rng, n):
+        del rng
+        self.calls += 1
+        if self.calls == 5:
+            sample = np.empty(n, dtype=float)
+            sample[::2] = 1e308
+            sample[1::2] = -1e308
+            return sample
+        return np.zeros(n, dtype=float)
+
+
+def test_batched_welch_failure_reports_exact_logical_simulation():
+    with pytest.raises(RuntimeError, match=r"simulation 2: Welch evaluation failed"):
+        stress_test(
+            method="welch_ttest",
+            metric="type1_error",
+            dgp=_OverflowOnThirdReplicate(),
+            n1=6,
+            n2=6,
+            simulations=7,
+            batch_size=7,
+        )
