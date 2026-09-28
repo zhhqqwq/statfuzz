@@ -253,6 +253,113 @@ Implemented:
 
 Still deferred:
 
-- badge / dedicated CI status artifact;
+- statistical regression comparison against a baseline;
+- more advanced uncertainty-aware assertion rules.
+
+
+## Status artifact and badge JSON
+
+A full `StatCISuiteResult` is useful for debugging and audit trails, but many CI consumers only need a small overall status document.
+
+```python
+from statfuzz import StatCIStatusArtifact
+
+status = StatCIStatusArtifact.from_suite(suite)
+
+status.write_json("statci-status.json")
+status.write_badge_json("statci-badge.json")
+```
+
+The lightweight status JSON contains:
+
+```text
+schema_version
+suite_name
+status
+passed
+checks
+  total
+  passed
+  failed
+badge
+```
+
+It intentionally does not duplicate the complete child `StatCIResult` payloads already stored in `statci-suite.json`.
+
+### Shields endpoint badge payload
+
+`statci-badge.json` follows the Shields endpoint-badge response shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "label": "StatCI",
+  "message": "PASS · 3/3",
+  "color": "brightgreen"
+}
+```
+
+A failing suite uses a red badge and a message such as `FAIL · 2/3`.
+
+A custom label can be supplied:
+
+```python
+status = StatCIStatusArtifact.from_suite(
+    suite,
+    badge_label="statistical CI",
+)
+```
+
+The badge file itself is only JSON. To render it as a live endpoint badge, publish it at a stable public URL that the badge service can fetch. A private GitHub Actions artifact is useful for workflow/download purposes, but it is not by itself a public badge endpoint.
+
+## Uploading CI artifacts
+
+Generate evidence before the final gate:
+
+```python
+suite.write_json("statci-suite.json")
+
+status = StatCIStatusArtifact.from_suite(suite)
+status.write_json("statci-status.json")
+status.write_badge_json("statci-badge.json")
+
+write_github_summary(suite)
+assert_suite(suite)
+```
+
+Then upload the files even when the statistical gate fails:
+
+```yaml
+- name: Run StatCI
+  run: python path/to/statci_checks.py
+
+- name: Upload StatCI artifacts
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: statci
+    path: |
+      statci-suite.json
+      statci-status.json
+      statci-badge.json
+```
+
+Because the files are written before `assert_suite`, the `if: always()` upload step can still preserve them after a failing StatCI run.
+
+## Current v0.6 status
+
+Implemented:
+
+- single statistical assertions;
+- machine-readable `StatCIResult`;
+- `StatCISuiteResult` aggregation;
+- deterministic suite JSON;
+- GitHub Actions Markdown summaries;
+- lightweight status artifact;
+- Shields endpoint-compatible badge JSON;
+- overall suite PASS / FAIL assertion.
+
+Still deferred:
+
 - statistical regression comparison against a baseline;
 - more advanced uncertainty-aware assertion rules.
