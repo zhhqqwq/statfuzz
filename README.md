@@ -220,6 +220,33 @@ family_shrink = shrink_dgp_family(
 
 StatFuzz never infers that one family is simpler than another; the plan order is explicit. Every cross-family proposal is re-simulated and recorded.
 
+
+### Failure maps and reports
+
+Search, validation, and shrinking results can be frozen into one deterministic report model:
+
+```python
+from statfuzz.report import build_report, failure_map_2d, write_html
+
+failure_map = failure_map_2d(
+    search=search,
+    x_parameter="n",
+    y_parameter="sigma",
+)
+
+report = build_report(
+    title="Welch t-test stress report",
+    search=search,
+    validation=validated,
+    failure_map=failure_map,
+)
+
+report.write_json("statfuzz-report.json")
+write_html(report, "statfuzz-report.html")
+```
+
+The same `StatFuzzReport` snapshot drives JSON and HTML. Failure-map cells include empirical behavior, deviation, status, and MCSE; sparse random-search cells remain explicit Missing values. See `docs/REPORTING.md`.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.

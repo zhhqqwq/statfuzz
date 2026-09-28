@@ -224,6 +224,33 @@ family_shrink = shrink_dgp_family(
 
 StatFuzz 不会自行判断哪一种分布族“更简单”；顺序完全由用户显式声明。每一次跨 family proposal 都会重新模拟，并进入可审计 trace。
 
+
+### Failure Map 与报告
+
+搜索、独立验证和 shrinking 的结果可以冻结成一份确定性的统一报告：
+
+```python
+from statfuzz.report import build_report, failure_map_2d, write_html
+
+failure_map = failure_map_2d(
+    search=search,
+    x_parameter="n",
+    y_parameter="sigma",
+)
+
+report = build_report(
+    title="Welch t-test stress report",
+    search=search,
+    validation=validated,
+    failure_map=failure_map,
+)
+
+report.write_json("statfuzz-report.json")
+write_html(report, "statfuzz-report.html")
+```
+
+JSON 与 HTML 都只消费同一份 `StatFuzzReport` 快照，不会重新运行 simulation。Failure Map 的每个已覆盖 cell 都包含经验估计、deviation、status 和 MCSE；随机搜索没有覆盖的位置会明确显示为 Missing。详见 `docs/REPORTING.md`。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。
