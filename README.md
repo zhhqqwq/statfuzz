@@ -8,23 +8,50 @@ StatFuzz asks a different question from a typical statistics library:
 
 > Instead of only computing a statistical method, can we automatically discover the data-generating conditions under which its advertised finite-sample behavior starts to break down?
 
-## v0.1 scope
+## Release status
 
-The first release is intentionally narrow. It estimates the empirical Type-I error of the two-sided Welch t-test under controlled data-generating processes (DGPs).
+StatFuzz is **pre-1.0 alpha software**. The first public package release candidate is
+**0.1.0**.
 
-Built-in DGPs:
+The historical roadmap labels v0.1 through v0.6 describe development phases
+(statistical core, search, discovery, shrinking, reports, and StatCI). They are **not**
+Python package versions; completing roadmap phase v0.6 does not imply a package version
+of 0.6.0.
 
-- Normal
-- shifted LogNormal
-- Student-t
-- two-component Normal mixture
+Release-facing documentation:
 
-The architecture is designed so later releases can add confidence-interval coverage, bias, power, calibration, automatic parameter search, counterexample shrinking, and reproducible reports without changing the basic user model.
+- [Public API](docs/PUBLIC_API.md)
+- [Versioning policy](docs/VERSIONING.md)
+- [Changelog](CHANGELOG.md)
+- [0.1.0 candidate release notes](docs/RELEASE_NOTES_0.1.0.md)
+- [Release checklist](docs/RELEASING.md)
+
+## Current scope
+
+StatFuzz currently provides:
+
+- reproducible Monte Carlo stress testing for Welch's two-sample t-test Type-I error;
+- MCSE reporting and deterministic seeds;
+- Normal, shifted LogNormal, Student-t, and two-component Normal mixture DGPs;
+- finite parameter spaces with grid and random search;
+- objective-based counterexample discovery with independent validation;
+- multiplicity-aware exploratory search reporting;
+- scalar and cross-family counterexample shrinking;
+- 2D failure maps plus deterministic JSON/HTML reports;
+- StatCI assertions, suite summaries, status/badge artifacts, and baseline regression checks.
 
 ## Quick start
 
+From a source checkout:
+
 ```bash
-pip install -e .
+python -m pip install .
+```
+
+For development:
+
+```bash
+python -m pip install -e ".[dev,release]"
 ```
 
 ```python

@@ -1,27 +1,37 @@
 [build-system]
-requires = ["setuptools>=75", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "statfuzz"
-version = "0.1.0"
-description = "Property-based stress testing for statistical methods."
-readme = "README.md"
+dynamic = ["version"]
+description = "Property-based stress testing, counterexample discovery, and statistical CI for statistical methods."
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
   {name = "zhhqqwq"}
 ]
-keywords = ["statistics", "simulation", "monte-carlo", "testing", "robustness"]
+keywords = [
+  "statistics",
+  "simulation",
+  "monte-carlo",
+  "testing",
+  "robustness",
+  "property-testing",
+  "continuous-integration",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering :: Mathematics",
+  "Typing :: Typed",
 ]
 dependencies = [
   "numpy>=1.26",
@@ -33,13 +43,27 @@ dev = [
   "pytest>=8",
   "ruff>=0.6",
 ]
+release = [
+  "build>=1.2",
+  "twine>=5.1",
+]
 
 [project.urls]
 Homepage = "https://github.com/zhhqqwq/statfuzz"
+Documentation = "https://github.com/zhhqqwq/statfuzz/tree/main/docs"
+Source = "https://github.com/zhhqqwq/statfuzz"
 Issues = "https://github.com/zhhqqwq/statfuzz/issues"
+Changelog = "https://github.com/zhhqqwq/statfuzz/blob/main/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = {attr = "statfuzz._version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["statfuzz*"]
+
+[tool.setuptools.package-data]
+statfuzz = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

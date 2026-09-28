@@ -1,16 +1,11 @@
 """StatFuzz: stress testing for statistical methods."""
 
+from ._version import __version__
 from .result import StressTestResult
 from .simulation import stress_test
 from .statci import (
-    STATCI_REGRESSION_SCHEMA_VERSION,
-    STATCI_SCHEMA_VERSION,
-    STATCI_STATUS_SCHEMA_VERSION,
     RegressionPolicy,
-    StatCIComparisonKey,
     StatCIRegressionError,
-    StatCIRegressionResult,
-    StatCIRegressionSuiteResult,
     StatCIResult,
     StatCIStatusArtifact,
     StatCISuiteError,
@@ -21,23 +16,14 @@ from .statci import (
     assert_regression_suite,
     assert_suite,
     check_property,
-    compare_results,
     compare_suites,
-    render_github_summary,
-    render_regression_summary,
     write_github_summary,
     write_regression_summary,
 )
 
 __all__ = [
-    "STATCI_REGRESSION_SCHEMA_VERSION",
-    "STATCI_SCHEMA_VERSION",
-    "STATCI_STATUS_SCHEMA_VERSION",
     "RegressionPolicy",
-    "StatCIComparisonKey",
     "StatCIRegressionError",
-    "StatCIRegressionResult",
-    "StatCIRegressionSuiteResult",
     "StatCIResult",
     "StatCIStatusArtifact",
     "StatCISuiteError",
@@ -45,16 +31,13 @@ __all__ = [
     "StatisticalAssertion",
     "StatisticalAssertionError",
     "StressTestResult",
+    "__version__",
     "assert_property",
     "assert_regression_suite",
     "assert_suite",
     "check_property",
-    "compare_results",
     "compare_suites",
-    "render_github_summary",
-    "render_regression_summary",
     "stress_test",
     "write_github_summary",
     "write_regression_summary",
 ]
-__version__ = "0.1.0"

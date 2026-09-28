@@ -3,11 +3,11 @@ import json
 import pytest
 
 from statfuzz import (
-    STATCI_STATUS_SCHEMA_VERSION,
     StatCIResult,
     StatCIStatusArtifact,
     StatCISuiteResult,
 )
+from statfuzz.statci import STATCI_STATUS_SCHEMA_VERSION
 
 
 def _result(*, property, passed):
