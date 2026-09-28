@@ -7,6 +7,14 @@ import numpy as np
 from scipy.stats import t
 
 
+class WelchBatchError(ValueError):
+    """Internal error carrying the failing logical offset within a batch."""
+
+    def __init__(self, index: int, message: str):
+        super().__init__(message)
+        self.index = index
+
+
 def _as_finite_sample(name: str, values: np.ndarray) -> np.ndarray:
     sample = np.asarray(values, dtype=float)
     if sample.ndim != 1:
@@ -92,7 +100,7 @@ def welch_ttest_pvalues_batch(
 
     if len(xs) != len(ys):
         raise ValueError("xs and ys must contain the same number of samples")
-    if not xs:
+    if len(xs) == 0:
         return np.empty(0, dtype=float)
 
     pvalues = np.empty(len(xs), dtype=float)
@@ -101,7 +109,10 @@ def welch_ttest_pvalues_batch(
     dfs: list[float] = []
 
     for index, (x, y) in enumerate(zip(xs, ys)):
-        statistic, df, override = _welch_components(x, y)
+        try:
+            statistic, df, override = _welch_components(x, y)
+        except Exception as exc:
+            raise WelchBatchError(index, str(exc)) from exc
         if override is not None:
             pvalues[index] = override
             continue
@@ -121,10 +132,20 @@ def welch_ttest_pvalues_batch(
         )
         if tail_values.shape != (len(active_indices),):
             raise ValueError("batched Welch p-value output has an unexpected shape")
-        if not np.all(np.isfinite(tail_values)):
-            raise ValueError("batched Welch p-value output contains non-finite values")
-        if np.any((tail_values < 0.0) | (tail_values > 1.0)):
-            raise ValueError("batched Welch p-value output must lie in [0, 1]")
+        finite_mask = np.isfinite(tail_values)
+        if not np.all(finite_mask):
+            bad = int(np.flatnonzero(~finite_mask)[0])
+            raise WelchBatchError(
+                active_indices[bad],
+                "batched Welch p-value output contains a non-finite value",
+            )
+        bounds_mask = (tail_values < 0.0) | (tail_values > 1.0)
+        if np.any(bounds_mask):
+            bad = int(np.flatnonzero(bounds_mask)[0])
+            raise WelchBatchError(
+                active_indices[bad],
+                "batched Welch p-value output must lie in [0, 1]",
+            )
 
         for index, pvalue in zip(active_indices, tail_values):
             pvalues[index] = pvalue
