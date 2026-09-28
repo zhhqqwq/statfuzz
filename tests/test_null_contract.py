@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from statfuzz import MeanEqualityNull, StressTestResult, stress_test
