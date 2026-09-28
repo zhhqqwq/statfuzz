@@ -14,10 +14,24 @@ StatFuzz is an experimental statistics project. Contributions are welcome, but e
 ## Local setup
 
 ```bash
-python -m pip install -e ".[dev]"
-pytest
+python -m pip install -e ".[dev,release]"
 ruff check .
+pytest
 ```
+
+Public imports are defined in [docs/PUBLIC_API.md](docs/PUBLIC_API.md). New public names
+should be added deliberately to the owning namespace `__all__` and covered by
+`tests/test_public_api.py`.
+
+Before release-oriented changes, also run:
+
+```bash
+python -m build
+python -m twine check dist/*
+```
+
+The full clean-install process is documented in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Design preference
 
