@@ -41,7 +41,7 @@ All optional sections are omitted as `null` when they are not supplied.
 
 ## Stable JSON schema
 
-Every report contains a `schema_version`. The current schema version is `1.1`.
+Every report contains a `schema_version`. The current schema version is `1.2`.
 
 ```python
 report.write_json("statfuzz-report.json")
@@ -52,7 +52,8 @@ The JSON serializer:
 - uses deterministic key ordering;
 - does not add a wall-clock timestamp;
 - rejects NaN/Infinity through the underlying result contracts;
-- stores search strategy, root seed, objective, parameters, seeds, estimates, MCSE, status, validation, shrinking traces, and failure-map data.
+- stores search strategy, root seed, objective, parameters, seeds, estimates, MCSE, status, validation, shrinking traces, and failure-map data;
+- stores each DGP's human-readable name separately from its structured machine identity (family + full-precision scalar parameters).
 
 This makes identical result objects produce identical JSON content.
 
@@ -137,3 +138,14 @@ The HTML renderer shows this information in a dedicated **Search Multiplicity** 
 When a `CandidateValidationResult` is supplied to `build_report`, the report also contains `selection_effect` with the search objective score, independent validation objective score, their gap, both MCSE values, both simulation budgets, and both stage statuses.
 
 A positive search-minus-validation gap is evidence that the independent re-run was less extreme on the chosen objective. The report does not label that gap as an unbiased winner's-curse estimate.
+
+
+## Structured DGP identity
+
+Report schema 1.2 adds `dgp1_identity` and `dgp2_identity` to every stress-test
+snapshot. Display names such as `Normal(mean=0, sd=1)` remain for readability, but
+machine consumers should use the structured identity when deciding whether two
+experiments are the same.
+
+For example, `sd=1.0000001` and `sd=1.0000002` may round to the same display name,
+but their identity parameter values remain distinct in JSON.
