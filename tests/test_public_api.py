@@ -1,10 +1,7 @@
 from importlib.metadata import version
 
 import statfuzz
-import statfuzz.dgp as dgp
-import statfuzz.report as report
-import statfuzz.search as search
-import statfuzz.statci as statci
+from statfuzz import dgp, report, search, statci
 
 
 def _assert_public_api(module, expected):
@@ -111,14 +108,14 @@ def test_report_namespace_exposes_workflow_not_snapshot_internals():
     }
     _assert_public_api(report, expected)
 
-    for internal_name in {
+    for internal_name in (
         "FailureMapCell",
         "SearchRecordSnapshot",
         "SearchSnapshot",
         "ShrinkSnapshot",
         "StressTestSnapshot",
         "ValidationSnapshot",
-    }:
+    ):
         assert internal_name not in report.__all__
 
 
