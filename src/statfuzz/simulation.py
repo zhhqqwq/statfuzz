@@ -7,6 +7,7 @@ import numpy as np
 from .dgp import DataGenerator
 from .dgp.base import get_dgp_identity
 from .methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
+from .methods.welch import WelchBatchError
 from .metrics import type1_error_evidence
 from .nulls import MeanEqualityNull, verify_mean_equality_null
 from .result import StressTestResult
@@ -53,6 +54,11 @@ def _checked_batch_pvalues(
     else:
         try:
             pvalues = welch_ttest_pvalues_batch(xs, ys)
+        except WelchBatchError as exc:
+            simulation_index = simulation_start + exc.index
+            raise RuntimeError(
+                f"simulation {simulation_index}: Welch evaluation failed"
+            ) from exc
         except Exception as exc:
             simulation_end = simulation_start + len(xs) - 1
             raise RuntimeError(
