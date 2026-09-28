@@ -16,9 +16,9 @@ import scipy
 from scipy.stats import t
 
 from statfuzz import stress_test
-from statfuzz.simulation import DEFAULT_BATCH_SIZE
 from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue
+from statfuzz.simulation import DEFAULT_BATCH_SIZE
 
 SCHEMA_VERSION = "1.1"
 DEFAULT_NS = (10, 50, 200)
