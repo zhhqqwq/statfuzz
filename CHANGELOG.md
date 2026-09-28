@@ -7,16 +7,7 @@ policy.
 
 ## [Unreleased]
 
-### Changed
-
-- Hardened the public import surface before the first public package release.
-- Single-sourced the package version and expanded release/package metadata.
-- Added wheel/sdist build, clean-install, and installed-distribution quality gates.
-- Added public API, versioning, and release-process documentation.
-
-## [0.1.0] - TBD
-
-> Release candidate. Replace `TBD` with the release date when the version is tagged.
+## [0.1.0] - 2026-09-28
 
 ### Added
 
@@ -34,6 +25,13 @@ policy.
 - StatCI property assertions, suite aggregation, GitHub Actions summaries, status/badge
   artifacts, and uncertainty-aware baseline regression comparison.
 - Python 3.10, 3.11, and 3.12 CI coverage.
+
+### Changed
+
+- Hardened the public import surface before the first public package release.
+- Single-sourced the package version and expanded release/package metadata.
+- Added wheel/sdist build, clean-install, and installed-distribution quality gates.
+- Added public API, versioning, and release-process documentation.
 
 ### Statistical interpretation
 
