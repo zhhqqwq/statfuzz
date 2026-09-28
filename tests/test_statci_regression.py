@@ -4,6 +4,7 @@ import math
 import pytest
 
 from statfuzz import (
+    MeanNullCheck,
     RegressionPolicy,
     StatCIRegressionError,
     StatCIResult,
@@ -14,7 +15,7 @@ from statfuzz import (
     stress_test,
     write_regression_summary,
 )
-from statfuzz.dgp import Normal
+from statfuzz.dgp import DGPIdentity, Normal
 from statfuzz.statci import (
     StatCIComparisonKey,
     compare_results,
@@ -34,6 +35,8 @@ def _result(
     method="welch_ttest",
     dgp1="Normal(mean=0, sd=1)",
     dgp2="Normal(mean=0, sd=1)",
+    dgp_identity=None,
+    null_check=None,
     n1=20,
     n2=20,
 ):
@@ -56,6 +59,9 @@ def _result(
         simulations=simulations,
         seed=seed,
         mcse=mcse,
+        dgp1_identity=dgp_identity,
+        dgp2_identity=dgp_identity,
+        null_check=null_check,
     )
 
 
@@ -477,6 +483,67 @@ def test_legacy_display_only_result_does_not_match_structured_result():
 
     assert legacy_key.dgp1_identity.startswith("legacy-display:")
     assert not current_key.dgp1_identity.startswith("legacy-display:")
+
+    with pytest.raises(ValueError, match="same comparison key"):
+        compare_results(legacy, current)
+
+
+def test_null_contract_is_part_of_comparison_identity():
+    identity = DGPIdentity.from_mapping(
+        "custom.centered",
+        {"shape": 1.0},
+    )
+    baseline = _result(
+        dgp1="Custom",
+        dgp2="Custom",
+        dgp_identity=identity,
+        null_check=MeanNullCheck(
+            source="declaration",
+            common_mean=0.0,
+        ),
+    )
+    current = _result(
+        dgp1="Custom",
+        dgp2="Custom",
+        dgp_identity=identity,
+        null_check=MeanNullCheck(
+            source="declaration",
+            common_mean=1.0,
+        ),
+    )
+
+    baseline_key = StatCIComparisonKey.from_result(baseline)
+    current_key = StatCIComparisonKey.from_result(current)
+
+    assert baseline_key.dgp1_identity == current_key.dgp1_identity
+    assert baseline_key.null_identity != current_key.null_identity
+
+    with pytest.raises(ValueError, match="same comparison key"):
+        compare_results(baseline, current)
+
+
+def test_structured_legacy_result_without_null_does_not_match_new_result():
+    identity = DGPIdentity.from_mapping(
+        "statfuzz.dgp.Normal",
+        {"mean": 0.0, "sd": 1.0},
+    )
+    legacy = _result(dgp_identity=identity)
+    current = _result(
+        dgp_identity=identity,
+        null_check=MeanNullCheck(
+            source="population_means",
+            common_mean=0.0,
+            group1_population_mean=0.0,
+            group2_population_mean=0.0,
+        ),
+    )
+
+    legacy_key = StatCIComparisonKey.from_result(legacy)
+    current_key = StatCIComparisonKey.from_result(current)
+
+    assert legacy_key.dgp1_identity == current_key.dgp1_identity
+    assert legacy_key.null_identity == "legacy-null:unrecorded"
+    assert current_key.null_identity != legacy_key.null_identity
 
     with pytest.raises(ValueError, match="same comparison key"):
         compare_results(legacy, current)
