@@ -1,0 +1,230 @@
+import json
+
+import pytest
+
+from statfuzz import (
+    STATCI_SCHEMA_VERSION,
+    StatCIResult,
+    StatisticalAssertion,
+    StatisticalAssertionError,
+    StressTestResult,
+    assert_property,
+    check_property,
+)
+
+
+def _result(
+    *,
+    metric="type1_error",
+    empirical=0.05,
+    mcse=0.002,
+    simulations=10_000,
+    seed=42,
+):
+    return StressTestResult(
+        method="welch_ttest",
+        metric=metric,
+        dgp1="normal",
+        dgp2="normal",
+        n1=20,
+        n2=20,
+        simulations=simulations,
+        seed=seed,
+        nominal=0.05,
+        empirical=empirical,
+        mcse=mcse,
+        tolerance=0.01,
+    )
+
+
+def test_check_property_returns_machine_readable_pass():
+    result = check_property(
+        _result(empirical=0.057),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    assert isinstance(result, StatCIResult)
+    assert result.passed
+    assert result.status == "PASS"
+    assert result.property == "type1_error"
+    assert result.target == 0.05
+    assert result.observed == 0.057
+    assert result.deviation == pytest.approx(0.007)
+    assert result.absolute_deviation == pytest.approx(0.007)
+    assert result.mcse == 0.002
+    assert result.simulations == 10_000
+    assert result.seed == 42
+
+
+def test_boundary_is_inclusive():
+    result = check_property(
+        _result(empirical=0.06),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    assert result.passed
+
+
+def test_check_property_returns_fail_without_raising():
+    result = check_property(
+        _result(empirical=0.071),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    assert not result.passed
+    assert result.status == "FAIL"
+    assert result.absolute_deviation == pytest.approx(0.021)
+
+
+def test_assert_property_returns_result_on_pass():
+    result = assert_property(
+        _result(empirical=0.052),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    assert result.passed
+
+
+def test_assert_property_raises_assertion_error_with_result_payload():
+    with pytest.raises(StatisticalAssertionError) as exc_info:
+        assert_property(
+            _result(empirical=0.08, mcse=0.003, simulations=5_000, seed=99),
+            property="type1_error",
+            target=0.05,
+            tolerance=0.01,
+        )
+
+    error = exc_info.value
+    assert isinstance(error, AssertionError)
+    assert not error.result.passed
+    assert error.result.status == "FAIL"
+    assert error.result.seed == 99
+    assert "type1_error" in str(error)
+    assert "observed=0.08" in str(error)
+    assert "target=0.05" in str(error)
+    assert "tolerance=0.01" in str(error)
+    assert "mcse=0.003" in str(error)
+    assert "simulations=5000" in str(error)
+
+
+def test_requested_property_must_match_result_metric():
+    with pytest.raises(ValueError, match="does not match"):
+        check_property(
+            _result(metric="type1_error"),
+            property="coverage",
+            target=0.95,
+            tolerance=0.01,
+        )
+
+
+@pytest.mark.parametrize(
+    ("target", "tolerance", "message"),
+    [
+        (float("nan"), 0.01, "target must be finite"),
+        (float("inf"), 0.01, "target must be finite"),
+        (0.05, float("nan"), "tolerance must be finite"),
+        (0.05, float("inf"), "tolerance must be finite"),
+        (0.05, -0.01, "tolerance must be non-negative"),
+    ],
+)
+def test_assertion_configuration_requires_finite_valid_values(
+    target,
+    tolerance,
+    message,
+):
+    with pytest.raises(ValueError, match=message):
+        StatisticalAssertion(
+            property="type1_error",
+            target=target,
+            tolerance=tolerance,
+        )
+
+
+def test_assertion_requires_non_empty_property():
+    with pytest.raises(ValueError, match="non-empty"):
+        StatisticalAssertion(property="", target=0.05, tolerance=0.01)
+
+
+def test_result_empirical_and_mcse_are_validated():
+    with pytest.raises(ValueError, match="result.empirical must be finite"):
+        check_property(
+            _result(empirical=float("nan")),
+            property="type1_error",
+            target=0.05,
+            tolerance=0.01,
+        )
+
+    with pytest.raises(ValueError, match="result.mcse must be non-negative"):
+        check_property(
+            _result(mcse=-0.001),
+            property="type1_error",
+            target=0.05,
+            tolerance=0.01,
+        )
+
+
+def test_mcse_is_evidence_not_part_of_threshold():
+    tiny_mcse = check_property(
+        _result(empirical=0.061, mcse=0.00001),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+    large_mcse = check_property(
+        _result(empirical=0.061, mcse=0.1),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    assert not tiny_mcse.passed
+    assert not large_mcse.passed
+    assert tiny_mcse.absolute_deviation == large_mcse.absolute_deviation
+
+
+def test_statci_json_is_deterministic_and_contains_evidence(tmp_path):
+    result = check_property(
+        _result(empirical=0.08, mcse=0.003, simulations=5_000, seed=99),
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    first = result.to_json()
+    second = result.to_json()
+
+    assert first == second
+
+    parsed = json.loads(first)
+    assert parsed["schema_version"] == STATCI_SCHEMA_VERSION
+    assert parsed["status"] == "FAIL"
+    assert parsed["property"] == "type1_error"
+    assert parsed["evidence"]["method"] == "welch_ttest"
+    assert parsed["evidence"]["mcse"] == 0.003
+    assert parsed["evidence"]["simulations"] == 5_000
+    assert parsed["evidence"]["seed"] == 99
+
+    path = result.write_json(tmp_path / "statci.json")
+    assert path.read_text(encoding="utf-8") == first + "\n"
+
+
+def test_statistical_assertion_can_be_reused():
+    assertion = StatisticalAssertion(
+        property="type1_error",
+        target=0.05,
+        tolerance=0.01,
+    )
+
+    passing = assertion.evaluate(_result(empirical=0.055))
+    failing = assertion.evaluate(_result(empirical=0.08))
+
+    assert passing.passed
+    assert not failing.passed
