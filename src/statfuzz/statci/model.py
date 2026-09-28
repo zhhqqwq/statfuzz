@@ -86,6 +86,102 @@ class StatCIResult:
         target.write_text(self.to_json(indent=indent) + "\n", encoding="utf-8")
         return target
 
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> StatCIResult:
+        """Reconstruct and validate a StatCIResult from its JSON-shaped payload."""
+
+        if not isinstance(data, dict):
+            raise TypeError("StatCIResult payload must be a dictionary")
+        if data.get("schema_version") != STATCI_SCHEMA_VERSION:
+            raise ValueError(
+                f"unsupported StatCI schema_version: {data.get('schema_version')!r}"
+            )
+
+        evidence = data.get("evidence")
+        if not isinstance(evidence, dict):
+            raise ValueError("StatCIResult payload requires an evidence object")
+
+        property_name = data.get("property")
+        metric = evidence.get("metric")
+        method = evidence.get("method")
+        dgp1 = evidence.get("dgp1")
+        dgp2 = evidence.get("dgp2")
+        if not isinstance(property_name, str) or not property_name:
+            raise ValueError("property must be a non-empty string")
+        if not isinstance(metric, str) or not metric:
+            raise ValueError("evidence.metric must be a non-empty string")
+        if property_name != metric:
+            raise ValueError("property must match evidence.metric")
+        for name, value in (("method", method), ("dgp1", dgp1), ("dgp2", dgp2)):
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"evidence.{name} must be a non-empty string")
+
+        passed = data.get("passed")
+        if not isinstance(passed, bool):
+            raise ValueError("passed must be a boolean")
+
+        target = _finite("target", data.get("target"))  # type: ignore[arg-type]
+        tolerance = _finite("tolerance", data.get("tolerance"))  # type: ignore[arg-type]
+        observed = _finite("observed", data.get("observed"))  # type: ignore[arg-type]
+        deviation = _finite("deviation", data.get("deviation"))  # type: ignore[arg-type]
+        absolute_deviation = _finite(
+            "absolute_deviation",
+            data.get("absolute_deviation"),  # type: ignore[arg-type]
+        )
+        mcse = _finite("evidence.mcse", evidence.get("mcse"))  # type: ignore[arg-type]
+        if tolerance < 0:
+            raise ValueError("tolerance must be non-negative")
+        if mcse < 0:
+            raise ValueError("evidence.mcse must be non-negative")
+
+        n1 = evidence.get("n1")
+        n2 = evidence.get("n2")
+        simulations = evidence.get("simulations")
+        seed = evidence.get("seed")
+        for name, value in (("n1", n1), ("n2", n2), ("simulations", simulations)):
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                raise ValueError(f"evidence.{name} must be a positive integer")
+        if seed is not None and (
+            not isinstance(seed, int) or isinstance(seed, bool) or seed < 0
+        ):
+            raise ValueError("evidence.seed must be a non-negative integer or null")
+
+        expected_deviation = observed - target
+        if not math.isclose(deviation, expected_deviation, rel_tol=0.0, abs_tol=1e-15):
+            raise ValueError("deviation is inconsistent with observed - target")
+        if not math.isclose(
+            absolute_deviation,
+            abs(deviation),
+            rel_tol=0.0,
+            abs_tol=1e-15,
+        ):
+            raise ValueError("absolute_deviation is inconsistent with deviation")
+
+        expected_passed = absolute_deviation <= tolerance
+        if passed != expected_passed:
+            raise ValueError("passed is inconsistent with tolerance")
+        if data.get("status") != ("PASS" if passed else "FAIL"):
+            raise ValueError("status is inconsistent with passed")
+
+        return cls(
+            property=property_name,
+            target=target,
+            tolerance=tolerance,
+            observed=observed,
+            deviation=deviation,
+            absolute_deviation=absolute_deviation,
+            passed=passed,
+            method=method,
+            metric=metric,
+            dgp1=dgp1,
+            dgp2=dgp2,
+            n1=n1,
+            n2=n2,
+            simulations=simulations,
+            seed=seed,
+            mcse=mcse,
+        )
+
 
 @dataclass(frozen=True)
 class StatisticalAssertion:
