@@ -1,0 +1,102 @@
+name: Release v0.1.0
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "CHANGELOG.md"
+      - "README.md"
+      - "README.zh-CN.md"
+      - "docs/RELEASE_NOTES_0.1.0.md"
+      - "docs/VERSIONING.md"
+      - ".github/workflows/release-v0.1.0.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check whether release already exists
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.1.0 >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify release version
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          namespace = {}
+          exec(Path("src/statfuzz/_version.py").read_text(encoding="utf-8"), namespace)
+          assert namespace["__version__"] == "0.1.0"
+          PY
+
+      - name: Install release dependencies
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,release]"
+
+      - name: Exact-commit quality gate
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          ruff check .
+          pytest
+
+      - name: Build release artifacts
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          python -m build
+          python -m twine check dist/*
+
+      - name: Verify built wheel
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          python -m venv .venv-release-final
+          .venv-release-final/bin/python -m pip install --upgrade pip
+          .venv-release-final/bin/python -m pip install dist/*.whl pytest
+          .venv-release-final/bin/python scripts/release_smoke.py
+          .venv-release-final/bin/python -m pytest tests
+
+      - name: Create v0.1.0 tag
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          if git ls-remote --exit-code --tags origin refs/tags/v0.1.0 >/dev/null 2>&1; then
+            echo "Tag v0.1.0 already exists; keeping the existing tag."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a v0.1.0 "$GITHUB_SHA" -m "StatFuzz v0.1.0"
+            git push origin refs/tags/v0.1.0
+          fi
+
+      - name: Create GitHub Release
+        if: steps.release.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.1.0 dist/* \
+            --verify-tag \
+            --title "StatFuzz v0.1.0" \
+            --notes-file docs/RELEASE_NOTES_0.1.0.md
+
+      - name: Release already exists
+        if: steps.release.outputs.exists == 'true'
+        run: echo "GitHub Release v0.1.0 already exists; no action needed."

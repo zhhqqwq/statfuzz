@@ -1,6 +1,6 @@
-# StatFuzz 0.1.0 — Release Candidate Notes
+# StatFuzz 0.1.0
 
-StatFuzz 0.1.0 is the first planned public alpha release.
+Released **2026-09-28**. StatFuzz 0.1.0 is the first public alpha release.
 
 It turns statistical robustness checks into a reproducible workflow:
 
@@ -72,6 +72,8 @@ the design matures; patch releases should preserve documented public API.
 
 ## Release publication
 
-These are candidate notes only. The hardening PR does **not** create a tag, GitHub Release,
-or PyPI publication. Publication happens only after the release quality gate is green on
-the final merge commit.
+The official GitHub release is tagged `v0.1.0`. Its attached wheel and source
+distribution are built from the exact tagged commit after the release quality gate passes.
+
+PyPI publication is intentionally separate from the GitHub release and is not required
+for the v0.1.0 GitHub publication.
