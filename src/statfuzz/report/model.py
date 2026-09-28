@@ -8,6 +8,10 @@ from typing import TYPE_CHECKING
 from ..result import StressTestResult
 from ..search.family import FamilyShrinkResult
 from ..search.grid import GridSearchResult
+from ..search.multiplicity import (
+    summarize_search_multiplicity,
+    summarize_selection_effect,
+)
 from ..search.random import RandomSearchResult
 from ..search.result import SearchRecord, SearchResult
 from ..search.shrink import CounterexampleShrinkResult
@@ -17,7 +21,7 @@ from ..search.validation import CandidateValidationResult
 if TYPE_CHECKING:
     from .map import FailureMap2D
 
-REPORT_SCHEMA_VERSION = "1.0"
+REPORT_SCHEMA_VERSION = "1.1"
 
 
 @dataclass(frozen=True)
@@ -112,6 +116,7 @@ class SearchSnapshot:
     parameter_names: tuple[str, ...]
     records: tuple[SearchRecordSnapshot, ...]
     metadata: dict[str, object]
+    multiplicity: dict[str, object]
 
     @classmethod
     def from_search(cls, search: SearchResult) -> SearchSnapshot:
@@ -144,6 +149,7 @@ class SearchSnapshot:
                 for record in search.records
             ),
             metadata=metadata,
+            multiplicity=summarize_search_multiplicity(search).as_dict(),
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -153,6 +159,7 @@ class SearchSnapshot:
             "root_seed": self.root_seed,
             "parameter_names": list(self.parameter_names),
             "metadata": dict(self.metadata),
+            "multiplicity": dict(self.multiplicity),
             "records": [record.as_dict() for record in self.records],
         }
 
@@ -268,6 +275,7 @@ class StatFuzzReport:
     title: str
     search: SearchSnapshot
     validation: ValidationSnapshot | None = None
+    selection_effect: dict[str, object] | None = None
     scalar_shrink: ShrinkSnapshot | None = None
     family_shrink: ShrinkSnapshot | None = None
     failure_map: FailureMap2D | None = None
@@ -280,6 +288,11 @@ class StatFuzzReport:
             "search": self.search.as_dict(),
             "validation": (
                 None if self.validation is None else self.validation.as_dict()
+            ),
+            "selection_effect": (
+                None
+                if self.selection_effect is None
+                else dict(self.selection_effect)
             ),
             "scalar_shrink": (
                 None if self.scalar_shrink is None else self.scalar_shrink.as_dict()
@@ -336,6 +349,11 @@ def build_report(
             None
             if validation is None
             else ValidationSnapshot.from_validation(validation)
+        ),
+        selection_effect=(
+            None
+            if validation is None
+            else summarize_selection_effect(search, validation).as_dict()
         ),
         scalar_shrink=(
             None if scalar_shrink is None else ShrinkSnapshot.from_scalar(scalar_shrink)
