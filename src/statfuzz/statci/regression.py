@@ -97,7 +97,7 @@ class RegressionPolicy:
         }
 
 
-def _comparison_mcse(
+def _uncertainty_scale(
     baseline: StatCIResult,
     current: StatCIResult,
     policy: RegressionPolicy,
@@ -123,7 +123,7 @@ class StatCIRegressionResult:
     key: StatCIComparisonKey
     baseline: StatCIResult
     current: StatCIResult
-    comparison_mcse: float
+    uncertainty_scale: float
     uncertainty_allowance: float
     regression_threshold: float
     worsening: float
@@ -150,7 +150,7 @@ class StatCIRegressionResult:
             "fail_to_pass": self.fail_to_pass,
             "observed_change": self.observed_change,
             "worsening": self.worsening,
-            "comparison_mcse": self.comparison_mcse,
+            "uncertainty_scale": self.uncertainty_scale,
             "uncertainty_allowance": self.uncertainty_allowance,
             "regression_threshold": self.regression_threshold,
             "baseline": self.baseline.as_dict(),
@@ -180,9 +180,9 @@ def compare_results(
             "baseline and current checks do not have the same comparison key"
         )
 
-    comparison_mcse = _comparison_mcse(baseline, current, resolved_policy)
+    uncertainty_scale = _uncertainty_scale(baseline, current, resolved_policy)
     uncertainty_allowance = (
-        resolved_policy.uncertainty_multiplier * comparison_mcse
+        resolved_policy.uncertainty_multiplier * uncertainty_scale
     )
     regression_threshold = (
         resolved_policy.minimum_worsening + uncertainty_allowance
@@ -203,7 +203,7 @@ def compare_results(
         key=baseline_key,
         baseline=baseline,
         current=current,
-        comparison_mcse=comparison_mcse,
+        uncertainty_scale=uncertainty_scale,
         uncertainty_allowance=uncertainty_allowance,
         regression_threshold=regression_threshold,
         worsening=worsening,
@@ -429,10 +429,10 @@ def render_regression_summary(result: StatCIRegressionSuiteResult) -> str:
         (
             f"Policy: minimum worsening={_number(result.policy.minimum_worsening)}, "
             f"uncertainty={_number(result.policy.uncertainty_multiplier)} × "
-            f"{result.policy.uncertainty_mode} comparison MCSE."
+            f"{result.policy.uncertainty_mode} uncertainty scale."
         ),
         "",
-        "| Property | Direction | Baseline | Current | Worsening | Comparison MCSE | Guard threshold | PASS→FAIL |",
+        "| Property | Direction | Baseline | Current | Worsening | Uncertainty scale | Guard threshold | PASS→FAIL |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
 
@@ -446,7 +446,7 @@ def render_regression_summary(result: StatCIRegressionSuiteResult) -> str:
                     _number(comparison.baseline.absolute_deviation),
                     _number(comparison.current.absolute_deviation),
                     _number(comparison.worsening),
-                    _number(comparison.comparison_mcse),
+                    _number(comparison.uncertainty_scale),
                     _number(comparison.regression_threshold),
                     "yes" if comparison.pass_to_fail else "no",
                 )
