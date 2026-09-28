@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..result import StressTestResult
 from ..search.family import FamilyShrinkResult
@@ -12,6 +13,9 @@ from ..search.result import SearchRecord, SearchResult
 from ..search.shrink import CounterexampleShrinkResult
 from ..search.validation import CandidateValidationResult
 from ..search.space import JSONScalar
+
+if TYPE_CHECKING:
+    from .map import FailureMap2D
 
 REPORT_SCHEMA_VERSION = "1.0"
 
@@ -266,7 +270,7 @@ class StatFuzzReport:
     validation: ValidationSnapshot | None = None
     scalar_shrink: ShrinkSnapshot | None = None
     family_shrink: ShrinkSnapshot | None = None
-    failure_map: object | None = None
+    failure_map: "FailureMap2D | None" = None
     schema_version: str = REPORT_SCHEMA_VERSION
 
     def as_dict(self) -> dict[str, object]:
@@ -287,10 +291,7 @@ class StatFuzzReport:
         }
 
         if self.failure_map is not None:
-            as_dict = getattr(self.failure_map, "as_dict", None)
-            if not callable(as_dict):
-                raise TypeError("failure_map must provide an as_dict() method")
-            data["failure_map"] = as_dict()
+            data["failure_map"] = self.failure_map.as_dict()
 
         return data
 
@@ -321,7 +322,7 @@ def build_report(
     validation: CandidateValidationResult | None = None,
     scalar_shrink: CounterexampleShrinkResult | None = None,
     family_shrink: FamilyShrinkResult | None = None,
-    failure_map: object | None = None,
+    failure_map: "FailureMap2D | None" = None,
 ) -> StatFuzzReport:
     """Freeze existing StatFuzz result objects into one report snapshot."""
 
