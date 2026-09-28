@@ -9,11 +9,10 @@ from statfuzz import (
     StatCIResult,
     StatCISuiteResult,
     assert_regression_suite,
-    compare_results,
     compare_suites,
-    render_regression_summary,
     write_regression_summary,
 )
+from statfuzz.statci import compare_results, render_regression_summary
 
 
 def _result(
