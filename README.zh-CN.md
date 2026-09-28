@@ -251,6 +251,24 @@ write_html(report, "statfuzz-report.html")
 
 JSON 与 HTML 都只消费同一份 `StatFuzzReport` 快照，不会重新运行 simulation。Failure Map 的每个已覆盖 cell 都包含经验估计、deviation、status 和 MCSE；随机搜索没有覆盖的位置会明确显示为 Missing。详见 `docs/REPORTING.md`。
 
+
+### StatCI 统计断言
+
+现在可以把 StatFuzz 的统计结果直接变成 pytest 风格的 CI contract：
+
+```python
+from statfuzz import assert_property
+
+ci_result = assert_property(
+    result,
+    property="type1_error",
+    target=0.05,
+    tolerance=0.01,
+)
+```
+
+第一版 StatCI 规则明确为：当且仅当 `abs(observed - target) <= tolerance` 时 PASS。MCSE 会进入证据字段，但不会偷偷改变阈值。失败时会抛出继承自 `AssertionError` 的 `StatisticalAssertionError`，异常中保留完整 `StatCIResult`；如果需要先收集结果再统一决定 CI 状态，可以使用不抛统计失败异常的 `check_property(...)`。结果支持确定性 JSON 导出。详见 `docs/STATCI.md`。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。
