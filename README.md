@@ -10,8 +10,8 @@ StatFuzz asks a different question from a typical statistics library:
 
 ## Release status
 
-StatFuzz is **pre-1.0 alpha software**. The first public package release candidate is
-**0.1.0**.
+StatFuzz is **pre-1.0 alpha software**. The current public release is
+**0.1.0** (2026-09-28).
 
 The historical roadmap labels v0.1 through v0.6 describe development phases
 (statistical core, search, discovery, shrinking, reports, and StatCI). They are **not**
@@ -23,7 +23,7 @@ Release-facing documentation:
 - [Public API](docs/PUBLIC_API.md)
 - [Versioning policy](docs/VERSIONING.md)
 - [Changelog](CHANGELOG.md)
-- [0.1.0 candidate release notes](docs/RELEASE_NOTES_0.1.0.md)
+- [0.1.0 release notes](docs/RELEASE_NOTES_0.1.0.md)
 - [Release checklist](docs/RELEASING.md)
 
 ## Current scope
