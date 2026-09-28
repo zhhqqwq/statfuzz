@@ -85,9 +85,10 @@ benchmark-results.json
 benchmark-results.md
 ```
 
-JSON schema version `1.0` contains:
+JSON schema version `1.1` contains:
 
 - runner and dependency metadata;
+- the end-to-end execution batch size;
 - the exact benchmark matrix;
 - seconds per scenario;
 - microseconds per replicate;
@@ -104,15 +105,35 @@ A local smoke run can use a reduced matrix:
 python benchmarks/performance_baseline.py \
   --dgp Normal \
   --n 10 \
-  --simulations 100
+  --simulations 100 \
+  --batch-size 64
 ```
 
 Omitting those filters runs the full canonical matrix.
 
-## Future batching reproducibility contract
+## Phase 1 batched execution
 
-Batching, progress callbacks, and checkpoint/resume are intentionally **not implemented**
-by the baseline work. Before adding them, StatFuzz adopts this required invariant:
+The first execution optimization keeps DGP sampling scalar and preserves the original
+logical draw order exactly:
+
+```text
+replicate 1: group 1 -> group 2
+replicate 2: group 1 -> group 2
+...
+```
+
+Only the final SciPy t-tail evaluation is vectorized. Mean, variance, Welch statistic,
+and degrees-of-freedom calculations still use the scalar reference operations for each
+replicate. The default execution batch size is 64; `batch_size=1` uses the original
+scalar Welch reference path.
+
+The benchmark CLI records the end-to-end execution batch size and accepts
+`--batch-size 1` for direct scalar-reference measurements.
+
+## Batching reproducibility contract
+
+Progress callbacks and checkpoint/resume are still future work, but batched execution
+already obeys this required invariant:
 
 > For the same experiment configuration and root seed, changing only execution
 > `batch_size` must not change the final statistical result or the random stream
@@ -144,12 +165,13 @@ identical across supported batch sizes.
 
 ## Next design step
 
-After the canonical baseline has been measured, use the observed bottleneck to design:
+After Phase 1 is benchmarked against the frozen pre-batching baseline:
 
-1. batch execution without changing replicate identity;
-2. progress callbacks defined on completed logical replicates;
-3. checkpoint state containing experiment identity, root seed, completed replicate count,
-   rejection count, and any random-stream state required by the chosen design;
-4. resume validation that refuses incompatible experiment/checkpoint combinations.
-
-Optimization should follow the measurements rather than precede them.
+1. keep the scalar implementation as the reproducibility oracle;
+2. decide whether vectorizing means/variances is justified by the measured remaining
+   bottleneck;
+3. add progress callbacks defined on completed logical batches;
+4. add checkpoint state containing experiment identity, root seed, completed replicate
+   count, rejection count, and exact NumPy bit-generator state;
+5. require resumed execution to match an uninterrupted run exactly, even when resume
+   uses a different batch size.
