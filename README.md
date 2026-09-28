@@ -381,3 +381,20 @@ Contributions should add a statistical property together with a reproducible sim
 ## License
 
 MIT
+
+
+### Multiplicity-aware search reporting
+
+Selecting the most extreme result from many Monte Carlo evaluations can exaggerate the apparent severity of the winner. StatFuzz therefore reports how many points were evaluated, the selected candidate's tie-aware empirical rank/tail fraction, objective-score quantiles, and the fraction outside tolerance.
+
+```python
+from statfuzz.search import (
+    summarize_search_multiplicity,
+    summarize_selection_effect,
+)
+
+multiplicity = summarize_search_multiplicity(search)
+selection = summarize_selection_effect(search, validated)
+```
+
+These ranks are descriptive—not corrected p-values. Independent validation remains the confirmation step, and the search-to-validation objective gap is reported only as a selection diagnostic.
