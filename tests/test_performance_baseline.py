@@ -19,6 +19,8 @@ def test_performance_baseline_smoke(tmp_path):
             "10",
             "--simulations",
             "8",
+            "--batch-size",
+            "7",
             "--json-out",
             str(json_path),
             "--markdown-out",
@@ -30,12 +32,13 @@ def test_performance_baseline_smoke(tmp_path):
 
     payload = json.loads(json_path.read_text(encoding="utf-8"))
 
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
     assert payload["matrix"] == {
         "dgps": ["Normal"],
         "n": [10],
         "simulations": [8],
     }
+    assert payload["metadata"]["execution_batch_size"] == 7
     assert len(payload["rows"]) == 1
 
     row = payload["rows"][0]
