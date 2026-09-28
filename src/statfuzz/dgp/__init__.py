@@ -1,4 +1,4 @@
-from .base import DGPIdentity, DataGenerator
+from .base import DataGenerator, DGPIdentity
 from .lognormal import LogNormal
 from .mixture import MixtureNormal
 from .normal import Normal
