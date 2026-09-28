@@ -82,6 +82,23 @@ class MeanNullCheck:
             "note": self.note,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> MeanNullCheck:
+        if not isinstance(data, dict):
+            raise TypeError("null check must be an object")
+        if data.get("kind") != "equal_means":
+            raise ValueError("unsupported null check kind")
+        source = data.get("source")
+        if source not in {"population_means", "declaration"}:
+            raise ValueError("unsupported null check source")
+        return cls(
+            source=source,
+            common_mean=data.get("common_mean"),
+            group1_population_mean=data.get("group1_population_mean"),
+            group2_population_mean=data.get("group2_population_mean"),
+            note=data.get("note"),
+        )
+
 
 def population_mean_of(dgp: object) -> float | None:
     """Return a finite declared population mean if the DGP exposes one."""
@@ -151,3 +168,6 @@ def verify_mean_equality_null(
         group2_population_mean=mean2,
         note=declaration.note,
     )
+
+
+__all__ = ["MeanEqualityNull", "MeanNullCheck"]
