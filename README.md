@@ -283,6 +283,19 @@ assert_suite(suite)               # marks the job failed when any check failed
 
 The suite preserves every child result, reports overall PASS/FAIL, and renders a GitHub Actions table with targets, deviations, MCSE, simulation budgets, and seeds.
 
+
+A lightweight CI status and badge artifact can be derived without rerunning any checks:
+
+```python
+from statfuzz import StatCIStatusArtifact
+
+status = StatCIStatusArtifact.from_suite(suite)
+status.write_json("statci-status.json")
+status.write_badge_json("statci-badge.json")
+```
+
+The badge payload is compatible with Shields endpoint badges; PASS uses `brightgreen`, FAIL uses `red`, and the message includes the passing count. To display it as a live badge, publish the badge JSON at a stable public URL.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.

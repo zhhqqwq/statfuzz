@@ -60,5 +60,5 @@ Goal: simplify a discovered failure case while preserving the failure criterion.
 - [x] GitHub Actions summary output
 - [x] machine-readable StatCI result
 - [x] aggregate StatCI suite results
-- [ ] badges / CI status artifact
+- [x] badges / CI status artifact
 - [ ] statistical regression comparison

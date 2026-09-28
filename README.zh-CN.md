@@ -287,6 +287,19 @@ assert_suite(suite)               # 任意一个检查失败时让 job FAIL
 
 Suite 会保留所有子结果并计算 overall PASS/FAIL；GitHub Actions Summary 会展示 target、observed、deviation、MCSE、simulation budget 和 seed。
 
+
+还可以在不重新运行任何统计检查的前提下生成轻量 CI 状态和 badge artifact：
+
+```python
+from statfuzz import StatCIStatusArtifact
+
+status = StatCIStatusArtifact.from_suite(suite)
+status.write_json("statci-status.json")
+status.write_badge_json("statci-badge.json")
+```
+
+Badge JSON 兼容 Shields endpoint badge：PASS 使用 `brightgreen`，FAIL 使用 `red`，message 会包含通过数量。若要在 README 中显示实时 badge，需要把该 JSON 发布到稳定的公开 URL；GitHub Actions artifact 本身主要用于 CI 保存和下载。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。

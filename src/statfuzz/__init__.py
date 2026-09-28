@@ -4,7 +4,9 @@ from .result import StressTestResult
 from .simulation import stress_test
 from .statci import (
     STATCI_SCHEMA_VERSION,
+    STATCI_STATUS_SCHEMA_VERSION,
     StatCIResult,
+    StatCIStatusArtifact,
     StatCISuiteError,
     StatCISuiteResult,
     StatisticalAssertion,
@@ -18,7 +20,9 @@ from .statci import (
 
 __all__ = [
     "STATCI_SCHEMA_VERSION",
+    "STATCI_STATUS_SCHEMA_VERSION",
     "StatCIResult",
+    "StatCIStatusArtifact",
     "StatCISuiteError",
     "StatCISuiteResult",
     "StatisticalAssertion",

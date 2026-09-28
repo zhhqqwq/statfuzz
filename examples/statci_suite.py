@@ -1,4 +1,5 @@
 from statfuzz import (
+    StatCIStatusArtifact,
     StatCISuiteResult,
     assert_suite,
     check_property,
@@ -46,7 +47,12 @@ suite = StatCISuiteResult.from_results(
 )
 
 suite.write_json("statci-suite.json")
+
+status = StatCIStatusArtifact.from_suite(suite)
+status.write_json("statci-status.json")
+status.write_badge_json("statci-badge.json")
+
 write_github_summary(suite, "statci-summary.md")
 
-# In GitHub Actions, omit the explicit path above so GITHUB_STEP_SUMMARY is used.
+# In GitHub Actions, omit the explicit summary path so GITHUB_STEP_SUMMARY is used.
 assert_suite(suite)
