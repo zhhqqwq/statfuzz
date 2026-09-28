@@ -11,8 +11,8 @@ from ..search.grid import GridSearchResult
 from ..search.random import RandomSearchResult
 from ..search.result import SearchRecord, SearchResult
 from ..search.shrink import CounterexampleShrinkResult
-from ..search.validation import CandidateValidationResult
 from ..search.space import JSONScalar
+from ..search.validation import CandidateValidationResult
 
 if TYPE_CHECKING:
     from .map import FailureMap2D
@@ -270,7 +270,7 @@ class StatFuzzReport:
     validation: ValidationSnapshot | None = None
     scalar_shrink: ShrinkSnapshot | None = None
     family_shrink: ShrinkSnapshot | None = None
-    failure_map: "FailureMap2D | None" = None
+    failure_map: FailureMap2D | None = None
     schema_version: str = REPORT_SCHEMA_VERSION
 
     def as_dict(self) -> dict[str, object]:
