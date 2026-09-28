@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .dgp.base import DGPIdentity
+
 
 @dataclass(frozen=True)
 class StressTestResult:
@@ -17,6 +19,8 @@ class StressTestResult:
     empirical: float
     mcse: float
     tolerance: float
+    dgp1_identity: DGPIdentity | None = None
+    dgp2_identity: DGPIdentity | None = None
 
     @property
     def deviation(self) -> float:
