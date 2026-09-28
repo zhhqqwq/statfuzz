@@ -7,7 +7,6 @@ from statfuzz import simulation, stress_test
 from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
 
-
 BATCH_SIZES = (1, 2, 7, 64, 10_000)
 
 
