@@ -1,6 +1,6 @@
 from statfuzz import (
-    StatCISuiteResult,
     StatCIStatusArtifact,
+    StatCISuiteResult,
     assert_suite,
     check_property,
     stress_test,
