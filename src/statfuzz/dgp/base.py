@@ -17,10 +17,17 @@ def _require_finite(name: str, value: float) -> float:
     return numeric
 
 
-def _validate_identity_scalar(name: str, value: IdentityScalar) -> IdentityScalar:
-    if isinstance(value, float) and not math.isfinite(value):
-        raise ValueError(f"DGP identity parameter {name!r} must be finite")
-    return value
+def _validate_identity_scalar(name: str, value: object) -> IdentityScalar:
+    if value is None or isinstance(value, (str, bool)):
+        return value
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            raise ValueError(f"DGP identity parameter {name!r} must be finite")
+        return numeric
+    raise TypeError(f"DGP identity parameter {name!r} must be a JSON scalar")
 
 
 @dataclass(frozen=True, order=True)
@@ -92,10 +99,6 @@ class DGPIdentity:
         for name, value in parameters.items():
             if not isinstance(name, str) or not name:
                 raise ValueError("DGP identity parameter names must be non-empty strings")
-            if value is not None and not isinstance(value, (str, int, float, bool)):
-                raise TypeError(
-                    f"DGP identity parameter {name!r} must be a JSON scalar"
-                )
             normalized[name] = _validate_identity_scalar(name, value)
 
         return cls.from_mapping(family, normalized)
