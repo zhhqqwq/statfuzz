@@ -269,6 +269,24 @@ ci_result = assert_property(
 
 第一版 StatCI 规则明确为：当且仅当 `abs(observed - target) <= tolerance` 时 PASS。MCSE 会进入证据字段，但不会偷偷改变阈值。失败时会抛出继承自 `AssertionError` 的 `StatisticalAssertionError`，异常中保留完整 `StatCIResult`；如果需要先收集结果再统一决定 CI 状态，可以使用不抛统计失败异常的 `check_property(...)`。结果支持确定性 JSON 导出。详见 `docs/STATCI.md`。
 
+
+多个统计检查可以汇总成一个 CI suite：
+
+```python
+from statfuzz import StatCISuiteResult, assert_suite, write_github_summary
+
+suite = StatCISuiteResult.from_results(
+    [check_a, check_b, check_c],
+    name="Statistical CI",
+)
+
+write_github_summary(suite)       # 追加写入 $GITHUB_STEP_SUMMARY
+suite.write_json("statci-suite.json")
+assert_suite(suite)               # 任意一个检查失败时让 job FAIL
+```
+
+Suite 会保留所有子结果并计算 overall PASS/FAIL；GitHub Actions Summary 会展示 target、observed、deviation、MCSE、simulation budget 和 seed。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。
