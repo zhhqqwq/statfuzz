@@ -30,6 +30,10 @@ class LogNormal:
         return f"ShiftedLogNormal(sigma={self.sigma:g}, mean={self.mean:g})"
 
     @property
+    def population_mean(self) -> float:
+        return self.mean
+
+    @property
     def identity(self) -> DGPIdentity:
         return DGPIdentity.from_mapping(
             "statfuzz.dgp.LogNormal",
