@@ -105,7 +105,7 @@ def population_mean_of(dgp: object) -> float | None:
 
     if not hasattr(dgp, "population_mean"):
         return None
-    value = getattr(dgp, "population_mean")
+    value = dgp.population_mean
     if value is None:
         return None
     return _finite_mean("DGP population_mean", value)
