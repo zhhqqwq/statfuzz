@@ -41,7 +41,7 @@ All optional sections are omitted as `null` when they are not supplied.
 
 ## Stable JSON schema
 
-Every report contains a `schema_version`. The current schema version is `1.2`.
+Every report contains a `schema_version`. The current schema version is `1.3`.
 
 ```python
 report.write_json("statfuzz-report.json")
@@ -53,7 +53,8 @@ The JSON serializer:
 - does not add a wall-clock timestamp;
 - rejects NaN/Infinity through the underlying result contracts;
 - stores search strategy, root seed, objective, parameters, seeds, estimates, MCSE, status, validation, shrinking traces, and failure-map data;
-- stores each DGP's human-readable name separately from its structured machine identity (family + full-precision scalar parameters).
+- stores each DGP's human-readable name separately from its structured machine identity (family + full-precision scalar parameters);
+- stores null verification, rejection counts, and the reported binomial confidence interval when available.
 
 This makes identical result objects produce identical JSON content.
 
@@ -149,3 +150,24 @@ experiments are the same.
 
 For example, `sd=1.0000001` and `sd=1.0000002` may round to the same display name,
 but their identity parameter values remain distinct in JSON.
+
+
+## Rejection counts and Wilson intervals
+
+Report schema 1.3 adds Type-I null-verification evidence and binomial uncertainty
+to every stress-test snapshot when the underlying result contains it:
+
+```text
+null_check
+rejection_count
+confidence_interval
+  level
+  method
+  low
+  high
+```
+
+Standalone HTML shows the rejection count and interval in search/validation
+summaries and includes the interval inside covered failure-map cells. The
+failure-map uncertainty overlay remains explicitly labeled MCSE; adding a Wilson
+interval does not change map PASS/FAIL semantics.
