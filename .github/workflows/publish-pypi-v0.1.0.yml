@@ -1,0 +1,119 @@
+name: Publish v0.1.0 to PyPI
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/publish-pypi-v0.1.0.yml"
+      - "docs/PYPI_PUBLISHING.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish exact v0.1.0 artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download exact GitHub Release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh release download v0.1.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "statfuzz-0.1.0-py3-none-any.whl" \
+            --pattern "statfuzz-0.1.0.tar.gz" \
+            --dir dist
+
+      - name: Verify GitHub Release artifact digests
+        run: |
+          echo "55c0d706e829bb71074f66c9479d752bc6446b5e14d811fb66e2bd81369786cd  dist/statfuzz-0.1.0-py3-none-any.whl" | sha256sum -c -
+          echo "46457ee685999496e04593ef15468b2fc6ef9dc60000eb41cb8cd4d00d3c6112  dist/statfuzz-0.1.0.tar.gz" | sha256sum -c -
+
+      - name: Publish distributions to PyPI with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  verify:
+    name: Verify public PyPI package
+    runs-on: ubuntu-latest
+    needs: publish
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Wait for PyPI and verify exact file digests
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+
+          expected = {
+              "statfuzz-0.1.0-py3-none-any.whl": "55c0d706e829bb71074f66c9479d752bc6446b5e14d811fb66e2bd81369786cd",
+              "statfuzz-0.1.0.tar.gz": "46457ee685999496e04593ef15468b2fc6ef9dc60000eb41cb8cd4d00d3c6112",
+          }
+          url = "https://pypi.org/pypi/statfuzz/0.1.0/json"
+
+          for attempt in range(20):
+              try:
+                  request = urllib.request.Request(
+                      url,
+                      headers={"Accept": "application/json"},
+                  )
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      payload = json.load(response)
+                  break
+              except urllib.error.HTTPError as exc:
+                  if exc.code != 404 or attempt == 19:
+                      raise
+                  time.sleep(15)
+          else:
+              raise RuntimeError("PyPI release did not become visible")
+
+          observed = {
+              item["filename"]: item["digests"]["sha256"]
+              for item in payload["urls"]
+          }
+
+          if set(observed) != set(expected):
+              raise RuntimeError(
+                  f"unexpected PyPI files: expected {sorted(expected)}, "
+                  f"observed {sorted(observed)}"
+              )
+
+          for filename, digest in expected.items():
+              if observed[filename] != digest:
+                  raise RuntimeError(
+                      f"SHA-256 mismatch for {filename}: "
+                      f"expected {digest}, observed {observed[filename]}"
+                  )
+
+          print("PyPI v0.1.0 file digests match the GitHub Release exactly")
+          PY
+
+      - name: Fresh install from public PyPI
+        run: |
+          python -m venv .venv-pypi-smoke
+          .venv-pypi-smoke/bin/python -m pip install --upgrade pip
+          .venv-pypi-smoke/bin/python -m pip install \
+            --no-cache-dir \
+            --index-url https://pypi.org/simple \
+            "statfuzz==0.1.0"
+
+      - name: Public package smoke test
+        run: .venv-pypi-smoke/bin/python scripts/release_smoke.py
