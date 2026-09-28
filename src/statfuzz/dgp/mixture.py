@@ -19,15 +19,12 @@ class MixtureNormal:
     mean: float = 0.0
 
     def __post_init__(self) -> None:
-        for name, value in (
-            ("weight", self.weight),
-            ("mean1", self.mean1),
-            ("sd1", self.sd1),
-            ("mean2", self.mean2),
-            ("sd2", self.sd2),
-            ("mean", self.mean),
-        ):
-            _require_finite(name, value)
+        for name in ("weight", "mean1", "sd1", "mean2", "sd2", "mean"):
+            object.__setattr__(
+                self,
+                name,
+                _require_finite(name, getattr(self, name)),
+            )
 
         if not 0 < self.weight < 1:
             raise ValueError("weight must be strictly between 0 and 1")
