@@ -5,11 +5,11 @@ import pytest
 
 from statfuzz import (
     RegressionPolicy,
-    check_property,
     StatCIRegressionError,
     StatCIResult,
     StatCISuiteResult,
     assert_regression_suite,
+    check_property,
     compare_suites,
     stress_test,
     write_regression_summary,
