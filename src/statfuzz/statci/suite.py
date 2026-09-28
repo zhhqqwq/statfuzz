@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .model import STATCI_SCHEMA_VERSION, StatCIResult
 
+_SUPPORTED_SUITE_SCHEMA_VERSIONS = {"1.0", STATCI_SCHEMA_VERSION}
+
 
 @dataclass(frozen=True)
 class StatCISuiteResult:
@@ -93,9 +95,10 @@ class StatCISuiteResult:
 
         if not isinstance(data, dict):
             raise TypeError("StatCISuiteResult payload must be a dictionary")
-        if data.get("schema_version") != STATCI_SCHEMA_VERSION:
+        schema_version = data.get("schema_version")
+        if schema_version not in _SUPPORTED_SUITE_SCHEMA_VERSIONS:
             raise ValueError(
-                f"unsupported StatCI schema_version: {data.get('schema_version')!r}"
+                f"unsupported StatCI schema_version: {schema_version!r}"
             )
 
         name = data.get("name")
