@@ -403,7 +403,8 @@ def assert_regression_suite(
 
 
 def _md(value: object) -> str:
-    return str(value).replace("\", "\\").replace("|", "\|").replace("\n", "<br>")
+    text = str(value)
+    return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
 
 
 def _number(value: float) -> str:
