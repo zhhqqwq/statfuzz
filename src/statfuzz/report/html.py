@@ -140,6 +140,7 @@ def _failure_map_html(failure_map: FailureMap2D) -> str:
                 f'<div class="map-estimate">{_e(cell.result.empirical)}</div>'
                 f'<div>Δ {_e(cell.result.deviation)}</div>'
                 f'<div class="map-uncertainty">MCSE {_e(cell.result.mcse)}</div>'
+                f'<div class="map-uncertainty">{_e(_interval_text(cell.result))}</div>'
                 f'<div>{_e(cell.result.status)}</div>'
                 "</td>"
             )
