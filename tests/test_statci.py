@@ -9,8 +9,9 @@ from statfuzz import (
     StressTestResult,
     assert_property,
     check_property,
+    stress_test,
 )
-from statfuzz.dgp import DGPIdentity
+from statfuzz.dgp import DGPIdentity, Normal
 from statfuzz.statci import STATCI_SCHEMA_VERSION
 
 
@@ -252,3 +253,66 @@ def test_statci_json_preserves_structured_dgp_identity():
     assert result.dgp2_identity == identity
     assert parsed["evidence"]["dgp1_identity"] == identity.as_dict()
     assert parsed["evidence"]["dgp2_identity"] == identity.as_dict()
+
+
+def test_statci_preserves_null_and_binomial_interval_evidence(monkeypatch):
+    monkeypatch.setattr(
+        "statfuzz.simulation.welch_ttest_pvalue",
+        lambda x, y: 1.0,
+    )
+    stress = stress_test(
+        method="welch_ttest",
+        metric="type1_error",
+        dgp=Normal(),
+        simulations=20,
+        seed=7,
+    )
+    result = check_property(
+        stress,
+        property="type1_error",
+        target=0.05,
+        tolerance=0.1,
+    )
+
+    parsed = json.loads(result.to_json())
+    evidence = parsed["evidence"]
+
+    assert evidence["null_check"]["source"] == "population_means"
+    assert evidence["null_check"]["common_mean"] == 0.0
+    assert evidence["rejection_count"] == 0
+    assert evidence["confidence_interval"]["level"] == 0.95
+    assert evidence["confidence_interval"]["method"] == "wilson"
+    assert evidence["confidence_interval"]["low"] == 0.0
+    assert evidence["confidence_interval"]["high"] == pytest.approx(
+        0.16112515805281935
+    )
+
+    loaded = StatCIResult.from_dict(parsed)
+    assert loaded.null_check == result.null_check
+    assert loaded.rejection_count == 0
+    assert loaded.interval_method == "wilson"
+    assert loaded.interval_high == pytest.approx(0.16112515805281935)
+
+
+def test_statci_tolerance_rule_is_unchanged_by_interval_evidence(monkeypatch):
+    monkeypatch.setattr(
+        "statfuzz.simulation.welch_ttest_pvalue",
+        lambda x, y: 1.0,
+    )
+    stress = stress_test(
+        method="welch_ttest",
+        metric="type1_error",
+        dgp=Normal(),
+        simulations=20,
+    )
+
+    result = check_property(
+        stress,
+        property="type1_error",
+        target=0.05,
+        tolerance=0.04,
+    )
+
+    assert stress.interval_high > 0.05
+    assert not result.passed
+    assert result.absolute_deviation == pytest.approx(0.05)
