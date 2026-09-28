@@ -61,4 +61,4 @@ Goal: simplify a discovered failure case while preserving the failure criterion.
 - [x] machine-readable StatCI result
 - [x] aggregate StatCI suite results
 - [x] badges / CI status artifact
-- [ ] statistical regression comparison
+- [x] statistical regression comparison
