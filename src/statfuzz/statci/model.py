@@ -10,8 +10,11 @@ from ..result import StressTestResult
 STATCI_SCHEMA_VERSION = "1.0"
 
 
-def _finite(name: str, value: float) -> float:
-    numeric = float(value)
+def _finite(name: str, value: object) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a finite number") from exc
     if not math.isfinite(numeric):
         raise ValueError(f"{name} must be finite")
     return numeric
@@ -120,15 +123,15 @@ class StatCIResult:
         if not isinstance(passed, bool):
             raise ValueError("passed must be a boolean")
 
-        target = _finite("target", data.get("target"))  # type: ignore[arg-type]
-        tolerance = _finite("tolerance", data.get("tolerance"))  # type: ignore[arg-type]
-        observed = _finite("observed", data.get("observed"))  # type: ignore[arg-type]
-        deviation = _finite("deviation", data.get("deviation"))  # type: ignore[arg-type]
+        target = _finite("target", data.get("target"))
+        tolerance = _finite("tolerance", data.get("tolerance"))
+        observed = _finite("observed", data.get("observed"))
+        deviation = _finite("deviation", data.get("deviation"))
         absolute_deviation = _finite(
             "absolute_deviation",
-            data.get("absolute_deviation"),  # type: ignore[arg-type]
+            data.get("absolute_deviation"),
         )
-        mcse = _finite("evidence.mcse", evidence.get("mcse"))  # type: ignore[arg-type]
+        mcse = _finite("evidence.mcse", evidence.get("mcse"))
         if tolerance < 0:
             raise ValueError("tolerance must be non-negative")
         if mcse < 0:
