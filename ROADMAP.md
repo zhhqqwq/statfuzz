@@ -49,10 +49,10 @@ Goal: simplify a discovered failure case while preserving the failure criterion.
 
 ## v0.5 — Failure maps and reports
 
-- [ ] 2D parameter maps
-- [ ] uncertainty overlays
-- [ ] HTML report export
-- [ ] machine-readable JSON report
+- [x] 2D parameter maps
+- [x] uncertainty overlays
+- [x] HTML report export
+- [x] machine-readable JSON report
 
 ## v0.6 — StatCI
 
