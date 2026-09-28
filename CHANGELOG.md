@@ -14,9 +14,6 @@ policy.
   microbenchmarks before any batching optimization.
 - Documented the future batching invariant that changing execution batch size must not
   change logical replicate random streams or the final fixed-seed result.
-
-### Added
-
 - Added an explicit equal-means null contract for Type-I error experiments. Built-in
   DGP population means are verified before simulation; custom DGPs without a
   `population_mean` require `MeanEqualityNull`.
@@ -38,12 +35,6 @@ policy.
   invalid p-values instead of silently counting invalid simulations as non-rejections.
 - Preserve structured DGP family/parameter identity so rounded human-readable names
   cannot cause false StatCI baseline matches.
-
-### Changed
-
-- StatCI JSON schema is now 1.1; schema 1.0 remains readable, but legacy display-only
-  baselines do not silently match newly structured results.
-- Report JSON schema is now 1.2 and includes structured DGP identities.
 
 ## [0.1.0] - 2026-09-28
 
