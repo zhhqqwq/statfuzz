@@ -5,8 +5,8 @@ import pytest
 from statfuzz import (
     STATCI_STATUS_SCHEMA_VERSION,
     StatCIResult,
-    StatCISuiteResult,
     StatCIStatusArtifact,
+    StatCISuiteResult,
 )
 
 
