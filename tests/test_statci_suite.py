@@ -7,9 +7,9 @@ from statfuzz import (
     StatCISuiteError,
     StatCISuiteResult,
     assert_suite,
-    render_github_summary,
     write_github_summary,
 )
+from statfuzz.statci import render_github_summary
 
 
 def _result(*, property, passed, seed=42):
