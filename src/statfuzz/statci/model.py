@@ -102,7 +102,7 @@ class StatCIResult:
 
         evidence = data.get("evidence")
         if not isinstance(evidence, dict):
-            raise ValueError("StatCIResult payload requires an evidence object")
+            raise TypeError("StatCIResult payload requires an evidence object")
 
         property_name = data.get("property")
         metric = evidence.get("metric")
@@ -121,7 +121,7 @@ class StatCIResult:
 
         passed = data.get("passed")
         if not isinstance(passed, bool):
-            raise ValueError("passed must be a boolean")
+            raise TypeError("passed must be a boolean")
 
         target = _finite("target", data.get("target"))
         tolerance = _finite("tolerance", data.get("tolerance"))
