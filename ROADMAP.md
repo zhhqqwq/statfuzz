@@ -56,6 +56,8 @@ Goal: simplify a discovered failure case while preserving the failure criterion.
 
 ## v0.6 — StatCI
 
-- [ ] pytest-style statistical assertions
+- [x] pytest-style statistical assertions
 - [ ] GitHub Actions summary output
-- [ ] badges / machine-readable status
+- [x] machine-readable StatCI result
+- [ ] badges / CI status artifact
+- [ ] statistical regression comparison
