@@ -3,15 +3,23 @@ from __future__ import annotations
 import json
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
 from .model import StatCIResult
 from .suite import StatCISuiteResult
 
-STATCI_REGRESSION_SCHEMA_VERSION = "1.0"
+STATCI_REGRESSION_SCHEMA_VERSION = "1.1"
 UncertaintyMode = Literal["conservative", "independent"]
+
+
+def _dgp_identity_key(display_name: str, identity: object) -> str:
+    canonical = getattr(identity, "canonical_json", None)
+    if callable(canonical):
+        return str(canonical())
+    return f"legacy-display:{display_name}"
+
 
 
 @dataclass(frozen=True, order=True)
@@ -23,10 +31,12 @@ class StatCIComparisonKey:
     tolerance: float
     method: str
     metric: str
-    dgp1: str
-    dgp2: str
+    dgp1_identity: str
+    dgp2_identity: str
     n1: int
     n2: int
+    dgp1_display: str = field(compare=False)
+    dgp2_display: str = field(compare=False)
 
     @classmethod
     def from_result(cls, result: StatCIResult) -> StatCIComparisonKey:
@@ -38,10 +48,18 @@ class StatCIComparisonKey:
             tolerance=result.tolerance,
             method=result.method,
             metric=result.metric,
-            dgp1=result.dgp1,
-            dgp2=result.dgp2,
+            dgp1_identity=_dgp_identity_key(
+                result.dgp1,
+                result.dgp1_identity,
+            ),
+            dgp2_identity=_dgp_identity_key(
+                result.dgp2,
+                result.dgp2_identity,
+            ),
             n1=result.n1,
             n2=result.n2,
+            dgp1_display=result.dgp1,
+            dgp2_display=result.dgp2,
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -51,8 +69,10 @@ class StatCIComparisonKey:
             "tolerance": self.tolerance,
             "method": self.method,
             "metric": self.metric,
-            "dgp1": self.dgp1,
-            "dgp2": self.dgp2,
+            "dgp1": self.dgp1_display,
+            "dgp2": self.dgp2_display,
+            "dgp1_identity": self.dgp1_identity,
+            "dgp2_identity": self.dgp2_identity,
             "n1": self.n1,
             "n2": self.n2,
         }
@@ -60,7 +80,8 @@ class StatCIComparisonKey:
     def describe(self) -> str:
         return (
             f"{self.property} | {self.method} | "
-            f"{self.dgp1} vs {self.dgp2} | n={self.n1}/{self.n2} | "
+            f"{self.dgp1_display} vs {self.dgp2_display} | "
+            f"n={self.n1}/{self.n2} | "
             f"target={self.target:g} ± {self.tolerance:g}"
         )
 
