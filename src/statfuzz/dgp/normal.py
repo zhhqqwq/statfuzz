@@ -13,8 +13,8 @@ class Normal:
     sd: float = 1.0
 
     def __post_init__(self) -> None:
-        _require_finite("mean", self.mean)
-        _require_finite("sd", self.sd)
+        object.__setattr__(self, "mean", _require_finite("mean", self.mean))
+        object.__setattr__(self, "sd", _require_finite("sd", self.sd))
         if self.sd <= 0:
             raise ValueError("sd must be positive")
 
