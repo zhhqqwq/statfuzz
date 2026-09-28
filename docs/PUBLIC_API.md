@@ -54,13 +54,15 @@ root.
 The built-in DGP namespace is public:
 
 - `DataGenerator`
+- `DGPIdentity`
 - `Normal`
 - `LogNormal`
 - `StudentT`
 - `MixtureNormal`
 
 The mean-preserving semantics documented for these generators are part of their public
-behavior.
+behavior. `DGPIdentity` is the supported structured identity type for custom generators
+that need stable machine-readable matching across runs.
 
 ## `statfuzz.search`
 
