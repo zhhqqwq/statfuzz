@@ -243,3 +243,22 @@ def test_suite_loader_rejects_inconsistent_child_deviation():
 
     with pytest.raises(ValueError, match="deviation"):
         StatCISuiteResult.from_dict(payload)
+
+
+def test_suite_loader_accepts_legacy_v1_0_without_dgp_identity():
+    suite = StatCISuiteResult.from_results(
+        [_result(property="type1_error", passed=True, seed=1)],
+        name="legacy",
+    )
+    payload = json.loads(suite.to_json())
+    payload["schema_version"] = "1.0"
+    for item in payload["results"]:
+        item["schema_version"] = "1.0"
+        item["evidence"].pop("dgp1_identity", None)
+        item["evidence"].pop("dgp2_identity", None)
+
+    loaded = StatCISuiteResult.from_dict(payload)
+
+    assert loaded.results[0].dgp1_identity is None
+    assert loaded.results[0].dgp2_identity is None
+    assert loaded.schema_version != "1.0"
