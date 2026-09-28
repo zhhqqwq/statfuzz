@@ -296,6 +296,27 @@ status.write_badge_json("statci-badge.json")
 
 The badge payload is compatible with Shields endpoint badges; PASS uses `brightgreen`, FAIL uses `red`, and the message includes the passing count. To display it as a live badge, publish the badge JSON at a stable public URL.
 
+
+Baseline regression comparison is uncertainty-aware rather than a raw difference check:
+
+```python
+from statfuzz import RegressionPolicy, compare_suites
+
+baseline = StatCISuiteResult.read_json("baseline-statci-suite.json")
+
+regression = compare_suites(
+    baseline,
+    current_suite,
+    policy=RegressionPolicy(
+        minimum_worsening=0.002,
+        uncertainty_multiplier=2.0,
+        uncertainty_mode="conservative",
+    ),
+)
+```
+
+Checks are matched by assertion/experiment identity, not seed or simulation count. Regression is based on worsening in absolute deviation from the target and must exceed both the configured minimum worsening and an MCSE-based uncertainty guard. PASS→FAIL transitions are recorded separately rather than automatically overriding that policy. See `docs/STATCI.md`.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.

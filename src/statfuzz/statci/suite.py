@@ -87,6 +87,58 @@ class StatCISuiteResult:
         target.write_text(self.to_json(indent=indent) + "\n", encoding="utf-8")
         return target
 
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> StatCISuiteResult:
+        """Reconstruct and validate a suite from its machine-readable payload."""
+
+        if not isinstance(data, dict):
+            raise TypeError("StatCISuiteResult payload must be a dictionary")
+        if data.get("schema_version") != STATCI_SCHEMA_VERSION:
+            raise ValueError(
+                f"unsupported StatCI schema_version: {data.get('schema_version')!r}"
+            )
+
+        name = data.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError("suite name must be a non-empty string")
+
+        raw_results = data.get("results")
+        if not isinstance(raw_results, list) or not raw_results:
+            raise ValueError("suite results must be a non-empty list")
+        results = tuple(
+            StatCIResult.from_dict(item)
+            for item in raw_results
+            if isinstance(item, dict)
+        )
+        if len(results) != len(raw_results):
+            raise ValueError("every suite result must be an object")
+
+        suite = cls(name=name, results=results)
+
+        expected = {
+            "passed": suite.passed,
+            "status": suite.status,
+            "total": suite.total,
+            "passed_count": suite.passed_count,
+            "failed_count": suite.failed_count,
+        }
+        for field, value in expected.items():
+            if data.get(field) != value:
+                raise ValueError(f"suite field {field!r} is inconsistent with results")
+
+        return suite
+
+    @classmethod
+    def from_json(cls, payload: str) -> StatCISuiteResult:
+        data = json.loads(payload)
+        if not isinstance(data, dict):
+            raise TypeError("suite JSON must contain an object")
+        return cls.from_dict(data)
+
+    @classmethod
+    def read_json(cls, path: str | Path) -> StatCISuiteResult:
+        return cls.from_json(Path(path).read_text(encoding="utf-8"))
+
 
 class StatCISuiteError(AssertionError):
     """Assertion failure carrying an entire failed StatCI suite."""

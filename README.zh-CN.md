@@ -300,6 +300,27 @@ status.write_badge_json("statci-badge.json")
 
 Badge JSON 兼容 Shields endpoint badge：PASS 使用 `brightgreen`，FAIL 使用 `red`，message 会包含通过数量。若要在 README 中显示实时 badge，需要把该 JSON 发布到稳定的公开 URL；GitHub Actions artifact 本身主要用于 CI 保存和下载。
 
+
+Baseline statistical regression comparison 不会把两次 Monte Carlo 数字简单相减后就判定“回归”。它会先按 assertion/实验身份严格匹配 baseline 与 current，再比较**离 target 的绝对偏离是否恶化**，并要求恶化量同时超过工程阈值和 MCSE uncertainty guard：
+
+```python
+from statfuzz import RegressionPolicy, compare_suites
+
+baseline = StatCISuiteResult.read_json("baseline-statci-suite.json")
+
+regression = compare_suites(
+    baseline,
+    current_suite,
+    policy=RegressionPolicy(
+        minimum_worsening=0.002,
+        uncertainty_multiplier=2.0,
+        uncertainty_mode="conservative",
+    ),
+)
+```
+
+PASS→FAIL 会单独记录，但不会绕过显式 regression policy。详细的 matching key、conservative / independent uncertainty 模式和 GitHub Actions gate 见 `docs/STATCI.md`。
+
 ## 为什么搜索层不直接创建 DGP？
 
 这是 StatFuzz 的一个核心架构决定。

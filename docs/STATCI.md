@@ -363,3 +363,207 @@ Still deferred:
 
 - statistical regression comparison against a baseline;
 - more advanced uncertainty-aware assertion rules.
+
+
+## Baseline statistical regression comparison
+
+A CI run may still PASS its absolute tolerance contract while becoming meaningfully worse than a previously accepted baseline. StatCI therefore supports a second, separate question:
+
+> Did the current statistical behavior deteriorate beyond both an engineering worsening threshold and the Monte Carlo uncertainty guard?
+
+This comparison does **not** call every raw Monte Carlo difference a regression.
+
+### Matching rules
+
+Baseline and current checks are matched by a stable comparison key containing:
+
+```text
+property
+target
+tolerance
+method
+metric
+dgp1
+dgp2
+n1
+n2
+```
+
+The key intentionally excludes:
+
+```text
+seed
+simulation budget
+observed estimate
+MCSE
+```
+
+because those are run-specific evidence rather than experiment identity.
+
+By default matching is strict. A missing baseline check, a new current check, or a duplicate comparison key is treated as a configuration error rather than silently paired or ignored.
+
+```python
+from statfuzz import StatCISuiteResult
+
+baseline = StatCISuiteResult.read_json("baseline-statci-suite.json")
+current = StatCISuiteResult.read_json("current-statci-suite.json")
+```
+
+Suite JSON is validated while loading: schema version, child result consistency, PASS/FAIL, deviations, seeds, and counts must agree with the serialized evidence.
+
+### What counts as worsening?
+
+For one matched check, StatCI compares distance from the assertion target:
+
+```text
+worsening
+=
+current.absolute_deviation
+-
+baseline.absolute_deviation
+```
+
+This matters because an observed estimate can move numerically while actually moving **closer** to the target.
+
+A regression is declared only when:
+
+```text
+worsening
+>
+minimum_worsening
++
+uncertainty_multiplier × uncertainty_scale
+```
+
+The boundary is strict: equality does not count as a regression.
+
+### Conservative uncertainty mode
+
+The default policy is:
+
+```python
+from statfuzz import RegressionPolicy
+
+policy = RegressionPolicy(
+    minimum_worsening=0.0,
+    uncertainty_multiplier=2.0,
+    uncertainty_mode="conservative",
+)
+```
+
+The conservative uncertainty scale is:
+
+```text
+baseline.mcse + current.mcse
+```
+
+This is deliberately called an **uncertainty scale**, not the MCSE of the difference. It avoids assuming the baseline and current Monte Carlo estimates are independent.
+
+The default multiplier of 2.0 is an engineering guard band. StatFuzz does not present it as a formal 95% hypothesis test or confidence interval.
+
+### Independent-stream mode
+
+When baseline and current were generated with known, distinct random seeds, an independent-stream approximation can be requested:
+
+```python
+policy = RegressionPolicy(
+    uncertainty_mode="independent",
+    uncertainty_multiplier=2.0,
+)
+```
+
+The uncertainty scale then becomes:
+
+```text
+sqrt(baseline.mcse^2 + current.mcse^2)
+```
+
+StatFuzz requires both seeds to be known and different before using this mode. Distinct seeds are an explicit engineering assumption about separate Monte Carlo streams; the mode should not be used when covariance between runs is intentionally introduced.
+
+### PASS→FAIL is metadata, not an override
+
+A current result can cross the absolute assertion boundary while the baseline-to-current worsening remains small relative to Monte Carlo uncertainty.
+
+StatCI records:
+
+```text
+pass_to_fail
+fail_to_pass
+```
+
+separately from the regression decision.
+
+That means a PASS→FAIL transition is visible in the report, but the baseline regression gate still follows the explicit regression policy instead of silently bypassing the uncertainty guard.
+
+### Regression suite
+
+```python
+from statfuzz import compare_suites
+
+regression = compare_suites(
+    baseline,
+    current,
+    policy=policy,
+    name="PR statistical regression",
+)
+```
+
+Each matched comparison is classified as one of:
+
+```text
+IMPROVED
+STABLE
+WITHIN_GUARD
+REGRESSION
+```
+
+The aggregate `StatCIRegressionSuiteResult` exposes:
+
+```text
+status
+passed
+total
+regression_count
+pass_to_fail_count
+improvement_count
+missing_current
+new_current
+```
+
+and deterministic JSON:
+
+```python
+regression.write_json("statci-regression.json")
+```
+
+### GitHub Actions summary and gate
+
+```python
+from statfuzz import (
+    assert_regression_suite,
+    write_regression_summary,
+)
+
+write_regression_summary(regression)
+regression.write_json("statci-regression.json")
+assert_regression_suite(regression)
+```
+
+The Markdown summary includes the baseline/current absolute deviations, worsening, uncertainty scale, guard threshold, direction, and PASS→FAIL transitions.
+
+As with the ordinary StatCI suite, write the summary and JSON before calling the final assertion so regression evidence remains available even when CI fails.
+
+### Current v0.6 status
+
+Implemented:
+
+- single statistical assertions;
+- machine-readable `StatCIResult`;
+- `StatCISuiteResult` aggregation;
+- deterministic suite JSON;
+- GitHub Actions Markdown summaries;
+- lightweight status and badge artifacts;
+- uncertainty-aware baseline regression comparison;
+- regression JSON / GitHub summary / CI gate.
+
+The main v0.6 roadmap is now complete. Future extensions may add richer uncertainty-aware assertion families, baseline management workflows, or repeated-run models.

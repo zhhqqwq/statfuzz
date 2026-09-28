@@ -203,3 +203,43 @@ def test_summary_renderer_requires_suite():
 def test_assert_suite_requires_suite():
     with pytest.raises(TypeError, match="StatCISuiteResult"):
         assert_suite(object())
+
+
+def test_suite_json_round_trip_can_be_loaded_as_baseline(tmp_path):
+    suite = StatCISuiteResult.from_results(
+        [
+            _result(property="type1_error", passed=True, seed=1),
+            _result(property="coverage", passed=False, seed=2),
+        ],
+        name="baseline",
+    )
+    path = suite.write_json(tmp_path / "baseline.json")
+
+    loaded = StatCISuiteResult.read_json(path)
+
+    assert loaded.as_dict() == suite.as_dict()
+    assert StatCISuiteResult.from_json(suite.to_json()).as_dict() == suite.as_dict()
+
+
+def test_suite_loader_rejects_inconsistent_status():
+    suite = StatCISuiteResult.from_results(
+        [_result(property="type1_error", passed=True, seed=1)],
+        name="baseline",
+    )
+    payload = json.loads(suite.to_json())
+    payload["status"] = "FAIL"
+
+    with pytest.raises(ValueError, match="status"):
+        StatCISuiteResult.from_dict(payload)
+
+
+def test_suite_loader_rejects_inconsistent_child_deviation():
+    suite = StatCISuiteResult.from_results(
+        [_result(property="type1_error", passed=True, seed=1)],
+        name="baseline",
+    )
+    payload = json.loads(suite.to_json())
+    payload["results"][0]["deviation"] = 123.0
+
+    with pytest.raises(ValueError, match="deviation"):
+        StatCISuiteResult.from_dict(payload)
