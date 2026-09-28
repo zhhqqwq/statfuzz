@@ -135,7 +135,124 @@ Implemented in this node:
 
 Deferred to later v0.6 nodes:
 
-- GitHub Actions job summaries;
-- aggregate suites of multiple assertions;
 - badge/status artifacts;
 - statistical regression comparison against a baseline report.
+
+
+## Aggregating multiple checks
+
+Use `StatCISuiteResult` to preserve a set of individual `StatCIResult` values and derive one overall CI status:
+
+```python
+from statfuzz import StatCISuiteResult, check_property
+
+suite = StatCISuiteResult.from_results(
+    [
+        check_property(
+            result_a,
+            property="type1_error",
+            target=0.05,
+            tolerance=0.01,
+        ),
+        check_property(
+            result_b,
+            property="type1_error",
+            target=0.05,
+            tolerance=0.01,
+        ),
+    ],
+    name="Core statistical checks",
+)
+```
+
+The suite is PASS only when every child result passes.
+
+It exposes:
+
+```text
+suite.total
+suite.passed_count
+suite.failed_count
+suite.passed
+suite.status
+```
+
+and deterministic machine-readable output:
+
+```python
+suite.write_json("statci-suite.json")
+```
+
+The suite JSON embeds the complete child StatCIResult payloads rather than reducing them to booleans.
+
+## GitHub Actions job summary
+
+```python
+from statfuzz import write_github_summary
+
+write_github_summary(suite)
+```
+
+Inside GitHub Actions, `write_github_summary` reads `GITHUB_STEP_SUMMARY` and **appends** a Markdown block.
+
+The summary includes:
+
+- overall PASS / FAIL;
+- passed / failed / total counts;
+- a table of every check;
+- observed value;
+- target;
+- tolerance;
+- signed deviation;
+- MCSE;
+- simulation budget;
+- seed;
+- a focused list of failed checks.
+
+When running outside GitHub Actions, an explicit path can be supplied:
+
+```python
+write_github_summary(suite, "statci-summary.md")
+```
+
+## Recommended CI order
+
+Write evidence before making the process fail:
+
+```python
+from statfuzz import assert_suite, write_github_summary
+
+write_github_summary(suite)
+suite.write_json("statci-suite.json")
+assert_suite(suite)
+```
+
+If the suite failed, `assert_suite` raises `StatCISuiteError`, which subclasses `AssertionError` and carries the full suite as `error.suite`.
+
+This ordering means the GitHub job summary has already been written when the final assertion marks the step as failed.
+
+A minimal Actions step can therefore look like:
+
+```yaml
+- name: Run statistical CI checks
+  run: python examples/statci_suite.py
+```
+
+In a production repository, the script would normally save the suite JSON to a known artifact path before calling `assert_suite`.
+
+## Current v0.6 status
+
+Implemented:
+
+- single statistical assertions;
+- machine-readable StatCIResult;
+- StatCISuiteResult aggregation;
+- deterministic suite JSON;
+- GitHub Actions Markdown summaries;
+- overall suite PASS / FAIL assertion.
+
+Still deferred:
+
+- badge / dedicated CI status artifact;
+- statistical regression comparison against a baseline;
+- more advanced uncertainty-aware assertion rules.
