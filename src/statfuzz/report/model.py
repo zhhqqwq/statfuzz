@@ -322,7 +322,7 @@ def build_report(
     validation: CandidateValidationResult | None = None,
     scalar_shrink: CounterexampleShrinkResult | None = None,
     family_shrink: FamilyShrinkResult | None = None,
-    failure_map: "FailureMap2D | None" = None,
+    failure_map: FailureMap2D | None = None,
 ) -> StatFuzzReport:
     """Freeze existing StatFuzz result objects into one report snapshot."""
 
