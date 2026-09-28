@@ -2,7 +2,8 @@ import json
 
 import pytest
 
-from statfuzz import StressTestResult
+from statfuzz import StressTestResult, stress_test
+from statfuzz.dgp import Normal
 from statfuzz.report import (
     REPORT_SCHEMA_VERSION,
     build_report,
@@ -406,3 +407,28 @@ def test_html_renders_search_to_validation_selection_diagnostic():
     assert "Search → validation diagnostic" in rendered
     assert "Search − validation gap" in rendered
     assert "not an unbiased estimate" in rendered
+
+
+def test_report_json_preserves_structured_dgp_identity():
+    space = ParameterSpace({"sd": [1.0000001]})
+
+    def evaluate(point, seed):
+        return stress_test(
+            method="welch_ttest",
+            metric="type1_error",
+            dgp=Normal(sd=float(point["sd"])),
+            simulations=5,
+            seed=seed,
+        )
+
+    search = grid_search(space=space, evaluate=evaluate, seed=42)
+    report = build_report(title="Identity", search=search)
+    data = report.as_dict()
+    result = data["search"]["records"][0]["result"]
+
+    assert result["dgp1"] == "Normal(mean=0, sd=1)"
+    assert result["dgp1_identity"] == {
+        "family": "statfuzz.dgp.Normal",
+        "parameters": {"mean": 0.0, "sd": 1.0000001},
+    }
+    assert result["dgp2_identity"] == result["dgp1_identity"]
