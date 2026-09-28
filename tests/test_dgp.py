@@ -76,3 +76,11 @@ def test_dgp_identity_is_canonical_across_parameter_order():
     assert first == second
     assert first.parameters == (("a", 1.0), ("b", 2.0))
     assert first.canonical_json() == second.canonical_json()
+
+
+def test_builtin_identity_normalizes_equivalent_numeric_inputs():
+    assert Normal(mean=0, sd=1).identity == Normal(mean=0.0, sd=1.0).identity
+    assert LogNormal(sigma=1, mean=0).identity == LogNormal(
+        sigma=1.0,
+        mean=0.0,
+    ).identity
