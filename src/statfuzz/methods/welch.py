@@ -30,6 +30,11 @@ def welch_ttest_pvalue(x: np.ndarray, y: np.ndarray) -> float:
     n2 = y.size
 
     with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        mean1 = float(np.mean(x))
+        mean2 = float(np.mean(y))
+        if not math.isfinite(mean1) or not math.isfinite(mean2):
+            raise ValueError("sample mean is non-finite")
+
         v1 = float(np.var(x, ddof=1))
         v2 = float(np.var(y, ddof=1))
         if not math.isfinite(v1) or not math.isfinite(v2):
@@ -40,11 +45,11 @@ def welch_ttest_pvalue(x: np.ndarray, y: np.ndarray) -> float:
             raise ValueError("Welch denominator is non-finite")
 
         if denom2 == 0:
-            return 1.0 if float(np.mean(x)) == float(np.mean(y)) else 0.0
+            return 1.0 if mean1 == mean2 else 0.0
         if denom2 < 0:
             raise ValueError("Welch denominator must be non-negative")
 
-        statistic = (float(np.mean(x)) - float(np.mean(y))) / math.sqrt(denom2)
+        statistic = (mean1 - mean2) / math.sqrt(denom2)
         df_num = denom2**2
         df_den = (v1 / n1) ** 2 / (n1 - 1) + (v2 / n2) ** 2 / (n2 - 1)
 
