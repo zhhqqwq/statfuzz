@@ -2,9 +2,8 @@ import copy
 
 import numpy as np
 import pytest
-import statfuzz.simulation as simulation
 
-from statfuzz import stress_test
+from statfuzz import simulation, stress_test
 from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
 
