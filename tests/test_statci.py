@@ -3,7 +3,6 @@ import json
 import pytest
 
 from statfuzz import (
-    STATCI_SCHEMA_VERSION,
     StatCIResult,
     StatisticalAssertion,
     StatisticalAssertionError,
@@ -11,6 +10,7 @@ from statfuzz import (
     assert_property,
     check_property,
 )
+from statfuzz.statci import STATCI_SCHEMA_VERSION
 
 
 def _result(
