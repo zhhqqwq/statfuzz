@@ -247,6 +247,24 @@ write_html(report, "statfuzz-report.html")
 
 The same `StatFuzzReport` snapshot drives JSON and HTML. Failure-map cells include empirical behavior, deviation, status, and MCSE; sparse random-search cells remain explicit Missing values. See `docs/REPORTING.md`.
 
+
+### StatCI assertions
+
+StatFuzz results can now be turned into pytest-style statistical contracts:
+
+```python
+from statfuzz import assert_property
+
+ci_result = assert_property(
+    result,
+    property="type1_error",
+    target=0.05,
+    tolerance=0.01,
+)
+```
+
+The first StatCI rule is explicit: PASS iff `abs(observed - target) <= tolerance`. MCSE is preserved as evidence but does not silently alter the threshold. On failure, `StatisticalAssertionError` subclasses `AssertionError` and carries the failed `StatCIResult`; non-raising `check_property(...)` is available for CI aggregation. Results can be exported as deterministic JSON. See `docs/STATCI.md`.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.
