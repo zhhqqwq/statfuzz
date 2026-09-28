@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
+from statfuzz.dgp import DGPIdentity, LogNormal, MixtureNormal, Normal, StudentT
 
 
 def test_normal_sample_shape():
@@ -64,8 +64,6 @@ def test_dgp_identity_preserves_full_precision_parameters():
 
 
 def test_dgp_identity_is_canonical_across_parameter_order():
-    from statfuzz.dgp import DGPIdentity
-
     first = DGPIdentity.from_mapping(
         "custom",
         {"b": 2.0, "a": 1.0},
