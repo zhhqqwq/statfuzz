@@ -10,7 +10,7 @@ from typing import Literal
 from .model import StatCIResult
 from .suite import StatCISuiteResult
 
-STATCI_REGRESSION_SCHEMA_VERSION = "1.1"
+STATCI_REGRESSION_SCHEMA_VERSION = "1.2"
 UncertaintyMode = Literal["conservative", "independent"]
 
 
