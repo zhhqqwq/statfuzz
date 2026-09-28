@@ -265,6 +265,24 @@ ci_result = assert_property(
 
 The first StatCI rule is explicit: PASS iff `abs(observed - target) <= tolerance`. MCSE is preserved as evidence but does not silently alter the threshold. On failure, `StatisticalAssertionError` subclasses `AssertionError` and carries the failed `StatCIResult`; non-raising `check_property(...)` is available for CI aggregation. Results can be exported as deterministic JSON. See `docs/STATCI.md`.
 
+
+Multiple checks can be aggregated into one CI suite:
+
+```python
+from statfuzz import StatCISuiteResult, assert_suite, write_github_summary
+
+suite = StatCISuiteResult.from_results(
+    [check_a, check_b, check_c],
+    name="Statistical CI",
+)
+
+write_github_summary(suite)       # appends to $GITHUB_STEP_SUMMARY
+suite.write_json("statci-suite.json")
+assert_suite(suite)               # marks the job failed when any check failed
+```
+
+The suite preserves every child result, reports overall PASS/FAIL, and renders a GitHub Actions table with targets, deviations, MCSE, simulation budgets, and seeds.
+
 ## Statistical contract
 
 For a Type-I error experiment, the two DGPs must satisfy the null hypothesis being evaluated. In v0.1 this means equal population means. Built-in skewed and mixture generators therefore expose explicit arithmetic-mean controls.
