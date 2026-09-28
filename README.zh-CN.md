@@ -443,3 +443,20 @@ ruff check .
 ## License
 
 MIT
+
+
+### 多重搜索 / 选择效应报告
+
+当 StatFuzz 在很多带 Monte Carlo 噪声的参数点中挑出最极端候选时，winner 往往会受到选择效应影响。现在搜索结果会显式报告：实际评估了多少个点、候选的 tie-aware empirical rank / upper-tail fraction、objective 分布的 median / p90 / p95，以及 OUTSIDE_TOLERANCE 的比例。
+
+```python
+from statfuzz.search import (
+    summarize_search_multiplicity,
+    summarize_selection_effect,
+)
+
+multiplicity = summarize_search_multiplicity(search)
+selection = summarize_selection_effect(search, validated)
+```
+
+这里的 empirical percentile / upper-tail fraction 只是**已评估搜索分数中的描述性排名**，不是 multiple-comparison corrected p-value，也不提供通用 FWER/FDR 控制。search → validation 的 objective gap 也只作为 selection diagnostic；独立 validation 仍然是确认候选的关键步骤。
