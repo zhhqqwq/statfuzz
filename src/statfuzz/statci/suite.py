@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .model import STATCI_SCHEMA_VERSION, StatCIResult
 
-_SUPPORTED_SUITE_SCHEMA_VERSIONS = {"1.0", STATCI_SCHEMA_VERSION}
+_SUPPORTED_SUITE_SCHEMA_VERSIONS = {"1.0", "1.1", STATCI_SCHEMA_VERSION}
 
 
 @dataclass(frozen=True)
