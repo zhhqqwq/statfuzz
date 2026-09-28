@@ -16,6 +16,8 @@ def test_package_version_matches_distribution_metadata():
 
 def test_top_level_public_api_is_intentionally_small():
     expected = {
+        "MeanEqualityNull",
+        "MeanNullCheck",
         "RegressionPolicy",
         "StatCIRegressionError",
         "StatCIResult",

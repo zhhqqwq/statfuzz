@@ -21,7 +21,7 @@ from ..search.validation import CandidateValidationResult
 if TYPE_CHECKING:
     from .map import FailureMap2D
 
-REPORT_SCHEMA_VERSION = "1.2"
+REPORT_SCHEMA_VERSION = "1.3"
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,12 @@ class StressTestSnapshot:
     dgp2: str
     dgp1_identity: dict[str, object] | None
     dgp2_identity: dict[str, object] | None
+    null_check: dict[str, object] | None
+    rejection_count: int | None
+    confidence_level: float | None
+    interval_method: str | None
+    interval_low: float | None
+    interval_high: float | None
     n1: int
     n2: int
     simulations: int
@@ -60,6 +66,14 @@ class StressTestSnapshot:
                 if result.dgp2_identity is None
                 else result.dgp2_identity.as_dict()
             ),
+            null_check=(
+                None if result.null_check is None else result.null_check.as_dict()
+            ),
+            rejection_count=result.rejection_count,
+            confidence_level=result.confidence_level,
+            interval_method=result.interval_method,
+            interval_low=result.interval_low,
+            interval_high=result.interval_high,
             n1=result.n1,
             n2=result.n2,
             simulations=result.simulations,
@@ -80,6 +94,18 @@ class StressTestSnapshot:
             "dgp2": self.dgp2,
             "dgp1_identity": self.dgp1_identity,
             "dgp2_identity": self.dgp2_identity,
+            "null_check": self.null_check,
+            "rejection_count": self.rejection_count,
+            "confidence_interval": (
+                None
+                if self.confidence_level is None
+                else {
+                    "level": self.confidence_level,
+                    "method": self.interval_method,
+                    "low": self.interval_low,
+                    "high": self.interval_high,
+                }
+            ),
             "n1": self.n1,
             "n2": self.n2,
             "simulations": self.simulations,

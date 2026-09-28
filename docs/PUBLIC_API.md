@@ -26,6 +26,8 @@ Core:
 - `__version__`
 - `stress_test`
 - `StressTestResult`
+- `MeanEqualityNull`
+- `MeanNullCheck`
 
 Common StatCI workflow:
 
@@ -134,3 +136,14 @@ StatFuzz follows a SemVer-inspired pre-1.0 policy:
 
 The exact exported-name sets are covered by `tests/test_public_api.py`, so accidental
 growth or removal of the public surface fails CI.
+
+
+## Type-I null contract
+
+For the current Welch Type-I error experiment, built-in DGPs expose a finite
+`population_mean` and StatFuzz verifies equality before simulation.
+
+Custom DGPs may also expose `population_mean`. If they cannot, callers must pass
+`MeanEqualityNull(mean=..., note=...)` to make the unverified analytical
+assumption explicit. The resulting `MeanNullCheck` is stored in
+`StressTestResult`, StatCI evidence, and reports.

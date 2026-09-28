@@ -1,6 +1,7 @@
 """StatFuzz: stress testing for statistical methods."""
 
 from ._version import __version__
+from .nulls import MeanEqualityNull, MeanNullCheck
 from .result import StressTestResult
 from .simulation import stress_test
 from .statci import (
@@ -22,6 +23,8 @@ from .statci import (
 )
 
 __all__ = [
+    "MeanEqualityNull",
+    "MeanNullCheck",
     "RegressionPolicy",
     "StatCIRegressionError",
     "StatCIResult",

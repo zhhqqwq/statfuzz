@@ -432,3 +432,18 @@ def test_report_json_preserves_structured_dgp_identity():
         "parameters": {"mean": 0.0, "sd": 1.0000001},
     }
     assert result["dgp2_identity"] == result["dgp1_identity"]
+    assert result["null_check"]["source"] == "population_means"
+    assert result["null_check"]["common_mean"] == 0.0
+    assert isinstance(result["rejection_count"], int)
+    assert result["confidence_interval"]["level"] == 0.95
+    assert result["confidence_interval"]["method"] == "wilson"
+    assert (
+        result["confidence_interval"]["low"]
+        <= result["empirical"]
+        <= result["confidence_interval"]["high"]
+    )
+
+    rendered = render_html(report)
+    assert "Binomial interval" in rendered
+    assert "95% wilson" in rendered
+    assert "Null verification" not in rendered or "population_means" in rendered

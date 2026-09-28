@@ -27,6 +27,10 @@ class StudentT:
         return f"StudentT(df={self.df:g}, mean={self.mean:g}, scale={self.scale:g})"
 
     @property
+    def population_mean(self) -> float:
+        return self.mean
+
+    @property
     def identity(self) -> DGPIdentity:
         return DGPIdentity.from_mapping(
             "statfuzz.dgp.StudentT",

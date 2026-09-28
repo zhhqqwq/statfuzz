@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..dgp.base import DGPIdentity
+from ..nulls import MeanNullCheck
 from ..result import StressTestResult
 
-STATCI_SCHEMA_VERSION = "1.1"
-_SUPPORTED_STATCI_SCHEMA_VERSIONS = {"1.0", STATCI_SCHEMA_VERSION}
+STATCI_SCHEMA_VERSION = "1.2"
+_SUPPORTED_STATCI_SCHEMA_VERSIONS = {"1.0", "1.1", STATCI_SCHEMA_VERSION}
 
 
 def _finite(name: str, value: object) -> float:
@@ -44,6 +45,12 @@ class StatCIResult:
     mcse: float
     dgp1_identity: DGPIdentity | None = None
     dgp2_identity: DGPIdentity | None = None
+    null_check: MeanNullCheck | None = None
+    rejection_count: int | None = None
+    confidence_level: float | None = None
+    interval_method: str | None = None
+    interval_low: float | None = None
+    interval_high: float | None = None
     schema_version: str = STATCI_SCHEMA_VERSION
 
     @property
@@ -81,6 +88,20 @@ class StatCIResult:
                 "simulations": self.simulations,
                 "seed": self.seed,
                 "mcse": self.mcse,
+                "null_check": (
+                    None if self.null_check is None else self.null_check.as_dict()
+                ),
+                "rejection_count": self.rejection_count,
+                "confidence_interval": (
+                    None
+                    if self.confidence_level is None
+                    else {
+                        "level": self.confidence_level,
+                        "method": self.interval_method,
+                        "low": self.interval_low,
+                        "high": self.interval_high,
+                    }
+                ),
             },
         }
 
@@ -126,6 +147,7 @@ class StatCIResult:
         dgp2 = evidence.get("dgp2")
         raw_dgp1_identity = evidence.get("dgp1_identity")
         raw_dgp2_identity = evidence.get("dgp2_identity")
+        raw_null_check = evidence.get("null_check")
         if not isinstance(property_name, str) or not property_name:
             raise ValueError("property must be a non-empty string")
         if not isinstance(metric, str) or not metric:
@@ -145,6 +167,11 @@ class StatCIResult:
             None
             if raw_dgp2_identity is None
             else DGPIdentity.from_dict(raw_dgp2_identity)
+        )
+        null_check = (
+            None
+            if raw_null_check is None
+            else MeanNullCheck.from_dict(raw_null_check)
         )
 
         passed = data.get("passed")
@@ -176,6 +203,60 @@ class StatCIResult:
             not isinstance(seed, int) or isinstance(seed, bool) or seed < 0
         ):
             raise ValueError("evidence.seed must be a non-negative integer or null")
+
+        rejection_count = evidence.get("rejection_count")
+        raw_interval = evidence.get("confidence_interval")
+        confidence_level = None
+        interval_method = None
+        interval_low = None
+        interval_high = None
+
+        if rejection_count is not None or raw_interval is not None:
+            if (
+                not isinstance(rejection_count, int)
+                or isinstance(rejection_count, bool)
+            ):
+                raise ValueError("evidence.rejection_count must be an integer")
+            if not 0 <= rejection_count <= simulations:
+                raise ValueError(
+                    "evidence.rejection_count must be between 0 and simulations"
+                )
+            if not math.isclose(
+                observed,
+                rejection_count / simulations,
+                rel_tol=0.0,
+                abs_tol=1e-15,
+            ):
+                raise ValueError(
+                    "observed is inconsistent with rejection_count / simulations"
+                )
+            if not isinstance(raw_interval, dict):
+                raise TypeError("evidence.confidence_interval must be an object")
+            confidence_level = _finite(
+                "evidence.confidence_interval.level",
+                raw_interval.get("level"),
+            )
+            if not 0 < confidence_level < 1:
+                raise ValueError(
+                    "evidence.confidence_interval.level must be between 0 and 1"
+                )
+            interval_method = raw_interval.get("method")
+            if not isinstance(interval_method, str) or not interval_method:
+                raise ValueError(
+                    "evidence.confidence_interval.method must be a non-empty string"
+                )
+            interval_low = _finite(
+                "evidence.confidence_interval.low",
+                raw_interval.get("low"),
+            )
+            interval_high = _finite(
+                "evidence.confidence_interval.high",
+                raw_interval.get("high"),
+            )
+            if not 0 <= interval_low <= observed <= interval_high <= 1:
+                raise ValueError(
+                    "confidence interval must contain observed within [0, 1]"
+                )
 
         expected_deviation = observed - target
         if not math.isclose(deviation, expected_deviation, rel_tol=0.0, abs_tol=1e-15):
@@ -213,6 +294,12 @@ class StatCIResult:
             mcse=mcse,
             dgp1_identity=dgp1_identity,
             dgp2_identity=dgp2_identity,
+            null_check=null_check,
+            rejection_count=rejection_count,
+            confidence_level=confidence_level,
+            interval_method=interval_method,
+            interval_low=interval_low,
+            interval_high=interval_high,
         )
 
 
@@ -275,4 +362,10 @@ class StatisticalAssertion:
             mcse=mcse,
             dgp1_identity=result.dgp1_identity,
             dgp2_identity=result.dgp2_identity,
+            null_check=result.null_check,
+            rejection_count=result.rejection_count,
+            confidence_level=result.confidence_level,
+            interval_method=result.interval_method,
+            interval_low=result.interval_low,
+            interval_high=result.interval_high,
         )

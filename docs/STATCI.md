@@ -71,7 +71,7 @@ This separates the statistical contract from any one experiment.
 
 ## Machine-readable result
 
-Every new check produces a `StatCIResult` with schema version `1.1`. Legacy schema `1.0` payloads remain readable.
+Every new check produces a `StatCIResult` with schema version `1.2`. Legacy schema `1.0` and `1.1` payloads remain readable.
 
 ```python
 ci_result.write_json("statci-result.json")
@@ -98,6 +98,9 @@ evidence
   simulations
   seed
   mcse
+  null_check
+  rejection_count
+  confidence_interval
 ```
 
 Serialization is deterministic for the same result object: keys are sorted and no wall-clock timestamp is injected.
@@ -583,3 +586,29 @@ Schema-1.0 suites can still be loaded. Because they do not contain structured DG
 identity, they use an explicit `legacy-display:` identity fallback. A legacy result
 therefore does not silently match a newly generated structured result; regenerate the
 baseline before performing a strict new-vs-old regression comparison.
+
+
+## Null verification and binomial interval evidence
+
+For Type-I error results, StatCI 1.2 preserves the null-hypothesis evidence from
+the originating `StressTestResult`. New results record whether equal population
+means were verified directly from DGP metadata or accepted through an explicit
+`MeanEqualityNull` declaration.
+
+The evidence also preserves the integer rejection count and a binomial
+confidence interval. The initial interval method is 95% Wilson by default. This
+interval describes uncertainty in the Monte Carlo rejection-probability estimate;
+it is not a confidence interval for an arbitrary model parameter.
+
+The StatCI engineering rule remains:
+
+```text
+PASS iff abs(observed - target) <= tolerance
+```
+
+Neither MCSE nor the Wilson interval silently widens that tolerance.
+
+Regression matching now includes the canonical equal-means null identity. Older
+results without recorded null verification use a `legacy-null:unrecorded`
+identity and do not silently match newly verified results. Regenerate such
+baselines before strict comparison.

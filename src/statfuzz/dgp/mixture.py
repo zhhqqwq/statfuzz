@@ -40,6 +40,10 @@ class MixtureNormal:
         )
 
     @property
+    def population_mean(self) -> float:
+        return self.mean
+
+    @property
     def identity(self) -> DGPIdentity:
         return DGPIdentity.from_mapping(
             "statfuzz.dgp.MixtureNormal",

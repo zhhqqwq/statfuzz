@@ -7,7 +7,8 @@ import numpy as np
 from .dgp import DataGenerator
 from .dgp.base import get_dgp_identity
 from .methods import welch_ttest_pvalue
-from .metrics import type1_error_summary
+from .metrics import type1_error_evidence
+from .nulls import MeanEqualityNull, verify_mean_equality_null
 from .result import StressTestResult
 
 
@@ -51,14 +52,18 @@ def stress_test(
     alpha: float = 0.05,
     tolerance: float = 0.01,
     seed: int | None = 0,
+    null: MeanEqualityNull | None = None,
+    confidence_level: float = 0.95,
+    interval_method: str = "wilson",
 ) -> StressTestResult:
     """Estimate a statistical method's finite-sample property by Monte Carlo.
 
     StatFuzz v0.1 intentionally supports one validated path:
     method='welch_ttest' + metric='type1_error'.
 
-    dgp and dgp2 should represent a null hypothesis with equal means.
-    Built-in generators expose explicit mean controls to make that easy.
+    For type1_error, StatFuzz verifies an equal-population-means null before
+    simulation. Built-in DGPs expose population_mean directly. Custom DGPs
+    without that metadata require an explicit MeanEqualityNull declaration.
     """
 
     if method != "welch_ttest":
@@ -77,8 +82,17 @@ def stress_test(
         raise ValueError("alpha must be finite and strictly between 0 and 1")
     if not math.isfinite(tolerance) or tolerance < 0:
         raise ValueError("tolerance must be finite and non-negative")
+    if null is not None and not isinstance(null, MeanEqualityNull):
+        raise TypeError("null must be a MeanEqualityNull or None")
+    if not math.isfinite(confidence_level) or not 0 < confidence_level < 1:
+        raise ValueError(
+            "confidence_level must be finite and strictly between 0 and 1"
+        )
+    if interval_method != "wilson":
+        raise ValueError("interval_method must currently be 'wilson'")
 
     other = dgp if dgp2 is None else dgp2
+    null_check = verify_mean_equality_null(dgp, other, null)
     dgp1_identity = get_dgp_identity(dgp)
     dgp2_identity = get_dgp_identity(other)
     rng = np.random.default_rng(seed)
@@ -107,7 +121,13 @@ def stress_test(
             )
         rejections += pvalue < alpha
 
-    empirical, mcse = type1_error_summary(rejections, simulations, alpha)
+    evidence = type1_error_evidence(
+        rejections,
+        simulations,
+        alpha,
+        confidence_level=confidence_level,
+        interval_method=interval_method,
+    )
 
     return StressTestResult(
         method=method,
@@ -119,9 +139,15 @@ def stress_test(
         simulations=simulations,
         seed=seed,
         nominal=alpha,
-        empirical=empirical,
-        mcse=mcse,
+        empirical=evidence.empirical,
+        mcse=evidence.mcse,
         tolerance=tolerance,
         dgp1_identity=dgp1_identity,
         dgp2_identity=dgp2_identity,
+        null_check=null_check,
+        rejection_count=evidence.rejection_count,
+        confidence_level=evidence.confidence_level,
+        interval_method=evidence.interval_method,
+        interval_low=evidence.interval_low,
+        interval_high=evidence.interval_high,
     )

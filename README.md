@@ -54,14 +54,15 @@ result = stress_test(
 print(result)
 ```
 
-The result reports the empirical rejection rate, its Monte Carlo standard error
-(MCSE), and its deviation from `alpha`. A result passes when the absolute deviation
-is at most `tolerance`; otherwise its status is `OUTSIDE_TOLERANCE`.
+The result reports the rejection count, empirical rejection rate, Monte Carlo
+standard error (MCSE), a 95% Wilson binomial interval, and the deviation from
+`alpha`. A result passes when the absolute deviation is at most `tolerance`;
+the interval is evidence and does not silently change that engineering rule.
 
 `LogNormal(mean=0.0)` shifts the draws to have population arithmetic mean zero.
-Both groups therefore satisfy the equal-means null hypothesis. For experiments
-using different group distributions, pass `dgp2` and set both population means
-equal.
+Built-in DGPs expose their population mean, so Type-I error experiments verify the
+equal-means null **before sampling**. If a custom DGP cannot expose
+`population_mean`, supply an explicit `MeanEqualityNull` declaration instead.
 
 ## Search, validate, and report
 
@@ -169,7 +170,7 @@ See the [StatCI guide](docs/STATCI.md) for policies and CI examples.
 
 | Area | Current support |
 | --- | --- |
-| Statistical experiment | Welch's two-sided t-test; empirical Type I error and MCSE |
+| Statistical experiment | Welch's two-sided t-test; verified equal-means Type I error, rejection counts, MCSE, and Wilson interval |
 | Data generation | Normal, shifted lognormal, Student-t, and two-component normal mixtures |
 | Search | Finite Cartesian parameter spaces; grid search and random sampling without replacement |
 | Validation | Separate search and validation budgets, deterministic child seeds, and separate estimates |
@@ -180,13 +181,15 @@ See the [StatCI guide](docs/STATCI.md) for policies and CI examples.
 ## Interpreting results
 
 A Type I error experiment requires a true null hypothesis. For the built-in Welch
-experiment, the population means must be equal. The caller is responsible for
-choosing compatible data generators.
+experiment, StatFuzz now verifies equal population means before the first draw.
+Custom DGPs should expose a finite `population_mean`; otherwise the caller must
+make the assumption explicit with `MeanEqualityNull(mean=..., note=...)`.
 
-MCSE describes simulation uncertainty in the estimated rejection rate. The
-PASS/FAIL tolerance is an explicit numerical threshold; MCSE does not
-automatically adjust it. The separate baseline-regression policy includes its own
-uncertainty guard.
+MCSE describes local Monte Carlo precision, while the reported Wilson interval
+shows binomial uncertainty in the simulated rejection probability, including
+boundary cases where MCSE is zero. Neither quantity automatically changes the
+existing PASS/FAIL tolerance. The separate baseline-regression policy includes
+its own uncertainty guard.
 
 Searching many noisy estimates can select an unusually extreme result.
 Independent validation re-estimates that candidate. The reported search ranks

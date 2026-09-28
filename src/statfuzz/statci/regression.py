@@ -10,7 +10,7 @@ from typing import Literal
 from .model import StatCIResult
 from .suite import StatCISuiteResult
 
-STATCI_REGRESSION_SCHEMA_VERSION = "1.1"
+STATCI_REGRESSION_SCHEMA_VERSION = "1.2"
 UncertaintyMode = Literal["conservative", "independent"]
 
 
@@ -19,6 +19,22 @@ def _dgp_identity_key(display_name: str, identity: object) -> str:
     if callable(canonical):
         return str(canonical())
     return f"legacy-display:{display_name}"
+
+
+def _null_identity_key(result: StatCIResult) -> str:
+    if result.null_check is None:
+        return "legacy-null:unrecorded"
+    payload = {
+        "kind": "equal_means",
+        "common_mean": result.null_check.common_mean,
+    }
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
 
 
 
@@ -33,6 +49,7 @@ class StatCIComparisonKey:
     metric: str
     dgp1_identity: str
     dgp2_identity: str
+    null_identity: str
     n1: int
     n2: int
     dgp1_display: str = field(compare=False)
@@ -56,6 +73,7 @@ class StatCIComparisonKey:
                 result.dgp2,
                 result.dgp2_identity,
             ),
+            null_identity=_null_identity_key(result),
             n1=result.n1,
             n2=result.n2,
             dgp1_display=result.dgp1,
@@ -73,6 +91,7 @@ class StatCIComparisonKey:
             "dgp2": self.dgp2_display,
             "dgp1_identity": self.dgp1_identity,
             "dgp2_identity": self.dgp2_identity,
+            "null_identity": self.null_identity,
             "n1": self.n1,
             "n2": self.n2,
         }

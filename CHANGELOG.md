@@ -7,6 +7,23 @@ policy.
 
 ## [Unreleased]
 
+### Added
+
+- Added an explicit equal-means null contract for Type-I error experiments. Built-in
+  DGP population means are verified before simulation; custom DGPs without a
+  `population_mean` require `MeanEqualityNull`.
+- Added rejection counts and configurable-confidence Wilson binomial intervals while
+  retaining MCSE and the existing tolerance rule.
+
+### Changed
+
+- StatCI JSON schema is now 1.2 and records null verification plus binomial interval
+  evidence; schema 1.0 and 1.1 payloads remain readable.
+- StatCI regression schema is now 1.2 and includes the null hypothesis in experiment
+  matching.
+- Report JSON schema is now 1.3 and includes null verification, rejection counts, and
+  confidence intervals.
+
 ### Fixed
 
 - Reject non-finite built-in DGP parameters, generated samples, Welch intermediates, and

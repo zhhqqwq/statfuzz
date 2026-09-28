@@ -23,6 +23,10 @@ class Normal:
         return f"Normal(mean={self.mean:g}, sd={self.sd:g})"
 
     @property
+    def population_mean(self) -> float:
+        return self.mean
+
+    @property
     def identity(self) -> DGPIdentity:
         return DGPIdentity.from_mapping(
             "statfuzz.dgp.Normal",

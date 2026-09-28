@@ -19,9 +19,21 @@ def _e(value: object) -> str:
     return escape(_text(value), quote=True)
 
 
+def _interval_text(result: StressTestSnapshot) -> str:
+    if result.confidence_level is None:
+        return "—"
+    return (
+        f"{100.0 * result.confidence_level:g}% {result.interval_method} "
+        f"[{result.interval_low:.6g}, {result.interval_high:.6g}]"
+    )
+
+
 def _result_summary(result: StressTestSnapshot) -> str:
     status_class = (
         "status-pass" if result.status == "PASS" else "status-fail"
+    )
+    null_source = (
+        None if result.null_check is None else result.null_check.get("source")
     )
     return (
         '<dl class="metrics">'
@@ -31,6 +43,9 @@ def _result_summary(result: StressTestSnapshot) -> str:
         f"<dt>Nominal</dt><dd>{_e(result.nominal)}</dd>"
         f"<dt>Deviation</dt><dd>{_e(result.deviation)}</dd>"
         f"<dt>MCSE</dt><dd>{_e(result.mcse)}</dd>"
+        f"<dt>Rejections</dt><dd>{_e(result.rejection_count)}</dd>"
+        f"<dt>Binomial interval</dt><dd>{_e(_interval_text(result))}</dd>"
+        f"<dt>Null verification</dt><dd>{_e(null_source)}</dd>"
         f"<dt>Simulations</dt><dd>{_e(result.simulations)}</dd>"
         f'<dt>Status</dt><dd class="{status_class}">{_e(result.status)}</dd>'
         "</dl>"
@@ -125,6 +140,7 @@ def _failure_map_html(failure_map: FailureMap2D) -> str:
                 f'<div class="map-estimate">{_e(cell.result.empirical)}</div>'
                 f'<div>Δ {_e(cell.result.deviation)}</div>'
                 f'<div class="map-uncertainty">MCSE {_e(cell.result.mcse)}</div>'
+                f'<div class="map-uncertainty">{_e(_interval_text(cell.result))}</div>'
                 f'<div>{_e(cell.result.status)}</div>'
                 "</td>"
             )
@@ -188,6 +204,8 @@ def _search_table(report: StatFuzzReport) -> str:
             f"<td>{_e(record.result.empirical)}</td>"
             f"<td>{_e(record.result.deviation)}</td>"
             f"<td>{_e(record.result.mcse)}</td>"
+            f"<td>{_e(record.result.rejection_count)}</td>"
+            f"<td>{_e(_interval_text(record.result))}</td>"
             f'<td class="{status_class}">{_e(record.result.status)}</td>'
             "</tr>"
         )
@@ -201,7 +219,8 @@ def _search_table(report: StatFuzzReport) -> str:
         f"Records: {_e(len(report.search.records))}</p>"
         '<div class="table-wrap"><table>'
         f"<thead><tr>{headers}<th>Objective score</th>"
-        "<th>Empirical</th><th>Deviation</th><th>MCSE</th><th>Status</th>"
+        "<th>Empirical</th><th>Deviation</th><th>MCSE</th>"
+        "<th>Rejections</th><th>Binomial interval</th><th>Status</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody>"
         "</table></div>"
         "</section>"

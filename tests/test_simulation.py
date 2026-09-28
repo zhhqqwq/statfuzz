@@ -40,6 +40,7 @@ def test_unsupported_method_fails_loudly():
 
 class _NonFiniteDGP:
     name = "non-finite"
+    population_mean = 0.0
 
     def sample(self, rng, n):
         del rng
@@ -48,6 +49,7 @@ class _NonFiniteDGP:
 
 class _WrongShapeDGP:
     name = "wrong-shape"
+    population_mean = 0.0
 
     def sample(self, rng, n):
         del rng
@@ -127,3 +129,8 @@ def test_stress_test_preserves_structured_dgp_identity():
     assert result.dgp1_identity == first.identity
     assert result.dgp2_identity == second.identity
     assert result.dgp1_identity != result.dgp2_identity
+    assert result.null_check is not None
+    assert result.null_check.source == "population_means"
+    assert result.null_check.common_mean == 0.0
+    assert result.rejection_count is not None
+    assert result.rejection_count == round(result.empirical * result.simulations)
