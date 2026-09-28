@@ -144,6 +144,7 @@ def test_zero_rejections_report_nonzero_wilson_uncertainty(monkeypatch):
         dgp=Normal(),
         simulations=20,
         seed=11,
+        batch_size=1,
     )
 
     assert result.rejection_count == 0
@@ -167,6 +168,7 @@ def test_all_rejections_report_wilson_lower_bound(monkeypatch):
         metric="type1_error",
         dgp=Normal(),
         simulations=20,
+        batch_size=1,
     )
 
     assert result.rejection_count == 20
@@ -188,6 +190,7 @@ def test_confidence_level_controls_reported_interval(monkeypatch):
         dgp=Normal(),
         simulations=20,
         confidence_level=0.95,
+        batch_size=1,
     )
     ci90 = stress_test(
         method="welch_ttest",
@@ -195,6 +198,7 @@ def test_confidence_level_controls_reported_interval(monkeypatch):
         dgp=Normal(),
         simulations=20,
         confidence_level=0.90,
+        batch_size=1,
     )
 
     assert ci90.interval_high < ci95.interval_high

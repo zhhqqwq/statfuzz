@@ -6,10 +6,13 @@ import numpy as np
 
 from .dgp import DataGenerator
 from .dgp.base import get_dgp_identity
-from .methods import welch_ttest_pvalue
+from .methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
+from .methods.welch import WelchBatchError
 from .metrics import type1_error_evidence
 from .nulls import MeanEqualityNull, verify_mean_equality_null
 from .result import StressTestResult
+
+DEFAULT_BATCH_SIZE = 64
 
 
 def _checked_sample(
@@ -40,6 +43,92 @@ def _checked_sample(
     return sample
 
 
+def _checked_batch_pvalues(
+    xs: list[np.ndarray],
+    ys: list[np.ndarray],
+    *,
+    simulation_start: int,
+) -> np.ndarray:
+    if len(xs) == 1:
+        pvalues = np.asarray([welch_ttest_pvalue(xs[0], ys[0])], dtype=float)
+    else:
+        try:
+            pvalues = welch_ttest_pvalues_batch(xs, ys)
+        except WelchBatchError as exc:
+            simulation_index = simulation_start + exc.index
+            raise RuntimeError(
+                f"simulation {simulation_index}: Welch evaluation failed"
+            ) from exc
+        except Exception as exc:
+            simulation_end = simulation_start + len(xs) - 1
+            raise RuntimeError(
+                "failed to evaluate Welch p-values for simulations "
+                f"{simulation_start}..{simulation_end}"
+            ) from exc
+
+    if pvalues.shape != (len(xs),):
+        raise RuntimeError("method returned an unexpected number of p-values")
+
+    for offset, pvalue in enumerate(pvalues):
+        value = float(pvalue)
+        if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+            simulation_index = simulation_start + offset
+            raise RuntimeError(
+                f"simulation {simulation_index}: method returned invalid "
+                f"p-value {value!r}"
+            )
+    return pvalues
+
+
+def _simulate_rejections(
+    *,
+    dgp: DataGenerator,
+    other: DataGenerator,
+    n1: int,
+    n2: int,
+    simulations: int,
+    alpha: float,
+    rng: np.random.Generator,
+    batch_size: int,
+) -> int:
+    """Run logical replicates without letting batch boundaries alter RNG use."""
+
+    rejections = 0
+    for batch_start in range(0, simulations, batch_size):
+        batch_stop = min(batch_start + batch_size, simulations)
+        xs: list[np.ndarray] = []
+        ys: list[np.ndarray] = []
+
+        for simulation_index in range(batch_start, batch_stop):
+            xs.append(
+                _checked_sample(
+                    dgp,
+                    rng,
+                    n1,
+                    group="group 1",
+                    simulation_index=simulation_index,
+                )
+            )
+            ys.append(
+                _checked_sample(
+                    other,
+                    rng,
+                    n2,
+                    group="group 2",
+                    simulation_index=simulation_index,
+                )
+            )
+
+        pvalues = _checked_batch_pvalues(
+            xs,
+            ys,
+            simulation_start=batch_start,
+        )
+        rejections += int(np.count_nonzero(pvalues < alpha))
+
+    return rejections
+
+
 def stress_test(
     *,
     method: str,
@@ -55,15 +144,13 @@ def stress_test(
     null: MeanEqualityNull | None = None,
     confidence_level: float = 0.95,
     interval_method: str = "wilson",
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> StressTestResult:
     """Estimate a statistical method's finite-sample property by Monte Carlo.
 
-    StatFuzz v0.1 intentionally supports one validated path:
-    method='welch_ttest' + metric='type1_error'.
-
-    For type1_error, StatFuzz verifies an equal-population-means null before
-    simulation. Built-in DGPs expose population_mean directly. Custom DGPs
-    without that metadata require an explicit MeanEqualityNull declaration.
+    Logical replicates always consume randomness in the same order. batch_size
+    changes only when already-generated samples are statistically evaluated.
+    batch_size=1 uses the original scalar Welch reference path.
     """
 
     if method != "welch_ttest":
@@ -78,6 +165,12 @@ def stress_test(
         raise ValueError("n2 must be at least 2")
     if simulations <= 0:
         raise ValueError("simulations must be positive")
+    if (
+        not isinstance(batch_size, int)
+        or isinstance(batch_size, bool)
+        or batch_size <= 0
+    ):
+        raise ValueError("batch_size must be a positive integer")
     if not math.isfinite(alpha) or not 0 < alpha < 1:
         raise ValueError("alpha must be finite and strictly between 0 and 1")
     if not math.isfinite(tolerance) or tolerance < 0:
@@ -97,29 +190,16 @@ def stress_test(
     dgp2_identity = get_dgp_identity(other)
     rng = np.random.default_rng(seed)
 
-    rejections = 0
-    for simulation_index in range(simulations):
-        x = _checked_sample(
-            dgp,
-            rng,
-            n1,
-            group="group 1",
-            simulation_index=simulation_index,
-        )
-        y = _checked_sample(
-            other,
-            rng,
-            n2,
-            group="group 2",
-            simulation_index=simulation_index,
-        )
-        pvalue = welch_ttest_pvalue(x, y)
-        if not math.isfinite(pvalue) or not 0.0 <= pvalue <= 1.0:
-            raise RuntimeError(
-                f"simulation {simulation_index}: method returned invalid "
-                f"p-value {pvalue!r}"
-            )
-        rejections += pvalue < alpha
+    rejections = _simulate_rejections(
+        dgp=dgp,
+        other=other,
+        n1=n1,
+        n2=n2,
+        simulations=simulations,
+        alpha=alpha,
+        rng=rng,
+        batch_size=batch_size,
+    )
 
     evidence = type1_error_evidence(
         rejections,

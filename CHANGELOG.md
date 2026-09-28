@@ -9,6 +9,11 @@ policy.
 
 ### Added
 
+- Added reproducible batched Monte Carlo execution with scalar sample generation and
+  vectorized SciPy t-tail evaluation. The default batch size is 64, while
+  `batch_size=1` preserves the scalar reference path exactly.
+- Added strict fixed-seed tests requiring batch sizes 1, 2, 7, 64, and larger than the
+  simulation budget to preserve results, logical sample order, and final RNG state.
 - Added a reproducible Monte Carlo performance-baseline harness and GitHub Actions
   workflow covering built-in DGPs, sample sizes, simulation budgets, and component
   microbenchmarks before any batching optimization.

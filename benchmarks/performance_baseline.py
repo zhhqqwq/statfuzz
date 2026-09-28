@@ -18,8 +18,9 @@ from scipy.stats import t
 from statfuzz import stress_test
 from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue
+from statfuzz.simulation import DEFAULT_BATCH_SIZE
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 DEFAULT_NS = (10, 50, 200)
 DEFAULT_SIMULATIONS = (1_000, 10_000, 100_000)
 ROOT_SEED = 20260929
@@ -181,6 +182,7 @@ def _end_to_end_benchmark(
     n: int,
     simulations: int,
     seed: int,
+    batch_size: int,
 ) -> float:
     def run() -> None:
         stress_test(
@@ -191,6 +193,7 @@ def _end_to_end_benchmark(
             n2=n,
             simulations=simulations,
             seed=seed,
+            batch_size=batch_size,
         )
 
     return _elapsed(run)
@@ -204,6 +207,7 @@ def benchmark_scenario(
     n_index: int,
     simulations: int,
     simulation_index: int,
+    batch_size: int,
 ) -> BenchmarkRow:
     dgp = _dgp_factories()[dgp_name]()
     seed = _scenario_seed(dgp_index, n_index, simulation_index)
@@ -220,6 +224,7 @@ def benchmark_scenario(
         n=n,
         simulations=simulations,
         seed=seed,
+        batch_size=batch_size,
     )
     sampling = _sampling_benchmark(
         dgp,
@@ -264,8 +269,9 @@ def benchmark_scenario(
     )
 
 
-def _metadata() -> dict[str, object]:
+def _metadata(*, batch_size: int) -> dict[str, object]:
     return {
+        "execution_batch_size": batch_size,
         "schema_version": SCHEMA_VERSION,
         "root_seed": ROOT_SEED,
         "python": platform.python_version(),
@@ -305,6 +311,7 @@ def _markdown(payload: dict[str, object]) -> str:
         f"- Runner arch: {metadata['github_runner_arch']}",
         f"- GitHub run id: {metadata['github_run_id']}",
         f"- Commit: {metadata['github_sha']}",
+        f"- End-to-end batch size: {metadata['execution_batch_size']}",
         "",
         "## Results",
         "",
@@ -344,6 +351,12 @@ def parse_args() -> argparse.Namespace:
         help="Restrict to one or more simulation budgets.",
     )
     parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help="Execution batch size for the end-to-end stress_test benchmark.",
+    )
+    parser.add_argument(
         "--json-out",
         type=Path,
         default=Path("benchmark-results.json"),
@@ -366,6 +379,8 @@ def main() -> int:
         raise ValueError("all n values must be at least 2")
     if any(value <= 0 for value in simulations_values):
         raise ValueError("all simulation budgets must be positive")
+    if args.batch_size <= 0:
+        raise ValueError("batch_size must be positive")
 
     rows: list[BenchmarkRow] = []
     for dgp_index, dgp_name in enumerate(dgp_names):
@@ -384,12 +399,13 @@ def main() -> int:
                         n_index=n_index,
                         simulations=simulations,
                         simulation_index=simulation_index,
+                        batch_size=args.batch_size,
                     )
                 )
 
     payload = {
         "schema_version": SCHEMA_VERSION,
-        "metadata": _metadata(),
+        "metadata": _metadata(batch_size=args.batch_size),
         "matrix": {
             "dgps": list(dgp_names),
             "n": list(ns),
