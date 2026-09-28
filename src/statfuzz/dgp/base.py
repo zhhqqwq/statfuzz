@@ -30,7 +30,7 @@ def _validate_identity_scalar(name: str, value: object) -> IdentityScalar:
     raise TypeError(f"DGP identity parameter {name!r} must be a JSON scalar")
 
 
-@dataclass(frozen=True, order=True)
+@dataclass(frozen=True)
 class DGPIdentity:
     """Canonical machine identity for a data-generating process.
 
