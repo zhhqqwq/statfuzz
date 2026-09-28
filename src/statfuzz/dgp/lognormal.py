@@ -20,8 +20,8 @@ class LogNormal:
     mean: float = 0.0
 
     def __post_init__(self) -> None:
-        _require_finite("sigma", self.sigma)
-        _require_finite("mean", self.mean)
+        object.__setattr__(self, "sigma", _require_finite("sigma", self.sigma))
+        object.__setattr__(self, "mean", _require_finite("mean", self.mean))
         if self.sigma <= 0:
             raise ValueError("sigma must be positive")
 
