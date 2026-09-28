@@ -8,31 +8,49 @@ StatFuzz 不只是“再实现一遍统计检验”。它关注的是另一个�
 
 > 在受控的数据生成机制下，一个统计方法在有限样本中什么时候开始偏离我们期望的统计性质？
 
+## 发布状态
+
+StatFuzz 当前是 **pre-1.0 alpha 软件**，第一个公开 package release candidate 为
+**0.1.0**。
+
+仓库 Roadmap 中的 v0.1～v0.6 是历史开发阶段编号，分别对应统计核心、搜索、自动反例
+发现、shrinking、报告和 StatCI；它们**不是 Python 包版本号**。因此完成 Roadmap v0.6
+并不意味着包版本必须叫 0.6.0。
+
+发布相关文档：
+
+- [Public API](docs/PUBLIC_API.md)
+- [版本策略](docs/VERSIONING.md)
+- [Changelog](CHANGELOG.md)
+- [0.1.0 候选发布说明](docs/RELEASE_NOTES_0.1.0.md)
+- [发布检查清单](docs/RELEASING.md)
+
 ## 当前能力
 
-v0.1 已经提供：
+StatFuzz 已经提供：
 
-- Welch 双样本 t 检验；
-- 经验 I 类错误率估计；
-- Monte Carlo 标准误（MCSE）；
-- 可复现随机种子；
-- Normal、平移 LogNormal、Student-t、双成分 Normal mixture 四类 DGP；
-- 与 SciPy 的数值交叉验证；
-- GitHub Actions CI。
-
-开发中的搜索层进一步加入：
-
-- `ParameterSpace`：声明有限、可序列化、确定性枚举的参数空间；
-- `grid_search`：遍历完整参数网格；
-- `random_search`：对大型有限参数空间进行可复现的无放回抽样；
-- 可扩展的 `SearchObjective`，内置 `absolute_deviation`、`positive_deviation`、`negative_deviation`；
-- 基于根随机种子和参数点内容生成的独立、可复现子种子；
-- `DiscoveryBudget`：显式控制搜索阶段和独立验证阶段的 Monte Carlo 次数。
+- Welch 双样本 t 检验 I 类错误的可复现 Monte Carlo 压力测试；
+- MCSE 与确定性随机种子；
+- Normal、平移 LogNormal、Student-t、双成分 Normal mixture DGP；
+- `ParameterSpace`、完整网格搜索和无放回随机搜索；
+- Objective 驱动的自动反例发现与独立 validation；
+- 面向搜索选择效应的 multiplicity-aware 描述性报告；
+- 标量参数与跨分布族 counterexample shrinking；
+- 2D Failure Map、确定性 JSON 与 standalone HTML report；
+- StatCI assertion、suite、GitHub Summary、status/badge artifact 与 baseline regression comparison。
 
 ## 快速开始
 
+从源码 checkout 安装：
+
 ```bash
-python -m pip install -e ".[dev]"
+python -m pip install .
+```
+
+开发环境：
+
+```bash
+python -m pip install -e ".[dev,release]"
 ```
 
 ### 单点压力测试
@@ -415,14 +433,11 @@ src/statfuzz/
 
 ## Roadmap
 
-- **v0.1**：Welch t-test + Type-I error 压力测试核心
-- **v0.2**：参数空间、网格搜索、随机搜索
-- **v0.3**：`find_counterexample()` + 独立验证
-- **v0.4**：counterexample shrinking
-- **v0.5**：failure map + HTML report
-- **v0.6**：StatCI / GitHub Actions
+v0.1～v0.6 的功能开发阶段已经全部完成。这里的 v0.x 是历史 Roadmap 阶段编号，
+不是 package semantic version。
 
-详细规划见 [ROADMAP.md](ROADMAP.md)。
+完整记录见 [ROADMAP.md](ROADMAP.md)；真正的包版本策略见
+[docs/VERSIONING.md](docs/VERSIONING.md)。
 
 ## 开发
 
