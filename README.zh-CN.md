@@ -10,8 +10,8 @@ StatFuzz 不只是“再实现一遍统计检验”。它关注的是另一个�
 
 ## 发布状态
 
-StatFuzz 当前是 **pre-1.0 alpha 软件**，第一个公开 package release candidate 为
-**0.1.0**。
+StatFuzz 当前是 **pre-1.0 alpha 软件**，当前公开版本为
+**0.1.0**（2026-09-28）。
 
 仓库 Roadmap 中的 v0.1～v0.6 是历史开发阶段编号，分别对应统计核心、搜索、自动反例
 发现、shrinking、报告和 StatCI；它们**不是 Python 包版本号**。因此完成 Roadmap v0.6
@@ -22,7 +22,7 @@ StatFuzz 当前是 **pre-1.0 alpha 软件**，第一个公开 package release ca
 - [Public API](docs/PUBLIC_API.md)
 - [版本策略](docs/VERSIONING.md)
 - [Changelog](CHANGELOG.md)
-- [0.1.0 候选发布说明](docs/RELEASE_NOTES_0.1.0.md)
+- [0.1.0 发布说明](docs/RELEASE_NOTES_0.1.0.md)
 - [发布检查清单](docs/RELEASING.md)
 
 ## 当前能力
