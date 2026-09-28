@@ -14,9 +14,9 @@ class StudentT:
     scale: float = 1.0
 
     def __post_init__(self) -> None:
-        _require_finite("df", self.df)
-        _require_finite("mean", self.mean)
-        _require_finite("scale", self.scale)
+        object.__setattr__(self, "df", _require_finite("df", self.df))
+        object.__setattr__(self, "mean", _require_finite("mean", self.mean))
+        object.__setattr__(self, "scale", _require_finite("scale", self.scale))
         if self.df <= 1:
             raise ValueError("df must be greater than 1 so the mean exists")
         if self.scale <= 0:
