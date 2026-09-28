@@ -2,11 +2,11 @@ import copy
 
 import numpy as np
 import pytest
+import statfuzz.simulation as simulation
 
 from statfuzz import stress_test
 from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
-from statfuzz.simulation import _simulate_rejections
 
 
 BATCH_SIZES = (1, 2, 7, 64, 10_000)
@@ -97,7 +97,7 @@ def _recorded_run(batch_size):
     second = _RecordingDGP("y", log)
     rng = np.random.default_rng(12345)
 
-    rejections = _simulate_rejections(
+    rejections = simulation._simulate_rejections(
         dgp=first,
         other=second,
         n1=5,
