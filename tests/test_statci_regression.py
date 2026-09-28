@@ -71,7 +71,7 @@ def test_conservative_guard_prevents_noise_scale_change_from_being_regression():
     comparison = compare_results(baseline, current)
 
     assert comparison.worsening == pytest.approx(0.004)
-    assert comparison.comparison_mcse == pytest.approx(0.004)
+    assert comparison.uncertainty_scale == pytest.approx(0.004)
     assert comparison.uncertainty_allowance == pytest.approx(0.008)
     assert comparison.regression_threshold == pytest.approx(0.008)
     assert not comparison.regressed
@@ -137,7 +137,7 @@ def test_independent_mode_uses_root_sum_square_mcse():
 
     comparison = compare_results(baseline, current, policy=policy)
 
-    assert comparison.comparison_mcse == pytest.approx(0.005)
+    assert comparison.uncertainty_scale == pytest.approx(0.005)
     assert comparison.uncertainty_allowance == pytest.approx(0.005)
 
 
@@ -348,7 +348,7 @@ def test_regression_summary_contains_policy_and_regressions(tmp_path):
 
     assert "## StatCI Regression — PR regression" in summary
     assert "**Overall:** FAIL" in summary
-    assert "conservative comparison MCSE" in summary
+    assert "conservative uncertainty scale" in summary
     assert "### Regressions" in summary
     assert "type1_error" in summary
 
@@ -401,6 +401,6 @@ def test_independent_formula_is_smaller_than_conservative_for_positive_mcse():
         policy=RegressionPolicy(uncertainty_mode="independent"),
     )
 
-    assert conservative.comparison_mcse == pytest.approx(0.007)
-    assert independent.comparison_mcse == pytest.approx(math.sqrt(0.000025))
-    assert independent.comparison_mcse < conservative.comparison_mcse
+    assert conservative.uncertainty_scale == pytest.approx(0.007)
+    assert independent.uncertainty_scale == pytest.approx(math.sqrt(0.000025))
+    assert independent.uncertainty_scale < conservative.uncertainty_scale
