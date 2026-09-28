@@ -147,6 +147,9 @@ def test_report_json_is_deterministic_and_machine_readable(tmp_path):
     parsed = json.loads(first)
     assert parsed["schema_version"] == REPORT_SCHEMA_VERSION
     assert parsed["search"]["strategy"] == "grid"
+    assert parsed["search"]["multiplicity"]["evaluated_points"] == 4
+    assert parsed["search"]["multiplicity"]["candidate_rank_one_based"] == 1
+    assert parsed["search"]["multiplicity"]["empirical_upper_tail_fraction"] == 0.25
     assert parsed["failure_map"]["covered_cells"] == 4
 
     path = report.write_json(tmp_path / "report.json")
@@ -180,6 +183,9 @@ def test_report_can_snapshot_validation_scalar_and_family_shrinking():
     data = report.as_dict()
 
     assert data["validation"] is not None
+    assert data["selection_effect"] is not None
+    assert data["selection_effect"]["evaluated_points"] == 4
+    assert data["selection_effect"]["candidate_rank_one_based"] == 1
     assert data["scalar_shrink"]["kind"] == "scalar"
     assert data["family_shrink"]["kind"] == "family"
     assert data["scalar_shrink"]["steps"]
@@ -328,6 +334,8 @@ def test_html_report_escapes_strings_and_renders_failure_map(tmp_path):
 
     assert "<script>alert" not in rendered
     assert "&lt;script&gt;" in rendered
+    assert "Search Multiplicity" in rendered
+    assert "not p-values" in rendered
     assert "Failure Map" in rendered
     assert "MCSE" in rendered
     assert "Search Records" in rendered
@@ -369,3 +377,32 @@ def test_html_renders_missing_cells_for_sparse_map():
     )
 
     assert "Missing" in render_html(report)
+
+
+def test_html_renders_search_to_validation_selection_diagnostic():
+    search = _grid_search()
+
+    def validation_evaluate(point, seed):
+        return _stress_result(
+            seed=seed,
+            simulations=1_000,
+            empirical=0.075,
+            n=int(point["n"]),
+        )
+
+    validation = validate_candidate(
+        search=search,
+        evaluate=validation_evaluate,
+        validation_root_seed=2026,
+    )
+    report = build_report(
+        title="Selection diagnostic",
+        search=search,
+        validation=validation,
+    )
+
+    rendered = render_html(report)
+
+    assert "Search → validation diagnostic" in rendered
+    assert "Search − validation gap" in rendered
+    assert "not an unbiased estimate" in rendered

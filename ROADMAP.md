@@ -25,7 +25,7 @@ Goal: move from one manually chosen DGP to a reproducible failure-region search.
 - [x] grid search
 - [x] random search
 - [x] tabular search results
-- [ ] multiple-comparison-aware reporting of search findings
+- [x] multiple-comparison-aware reporting of search findings
 
 ## v0.3 — Counterexample discovery
 

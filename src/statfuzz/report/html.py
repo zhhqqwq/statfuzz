@@ -37,6 +37,68 @@ def _result_summary(result: StressTestSnapshot) -> str:
     )
 
 
+def _multiplicity_html(report: StatFuzzReport) -> str:
+    summary = report.search.multiplicity
+    random_coverage = ""
+    if report.search.strategy == "random":
+        random_coverage = (
+            f"<p><strong>Random-search coverage:</strong> "
+            f"{_e(report.search.metadata.get('draws'))}/"
+            f"{_e(report.search.metadata.get('space_size'))} "
+            f"({_e(report.search.metadata.get('coverage_fraction'))})</p>"
+        )
+
+    selection_html = ""
+    if report.selection_effect is not None:
+        diagnostic = report.selection_effect
+        selection_html = (
+            "<h3>Search → validation diagnostic</h3>"
+            '<dl class="metrics">'
+            f"<dt>Search objective</dt><dd>{_e(diagnostic['search_score'])}</dd>"
+            f"<dt>Validation objective</dt><dd>{_e(diagnostic['validation_score'])}</dd>"
+            f"<dt>Search − validation gap</dt>"
+            f"<dd>{_e(diagnostic['search_minus_validation_gap'])}</dd>"
+            f"<dt>Search MCSE</dt><dd>{_e(diagnostic['search_mcse'])}</dd>"
+            f"<dt>Validation MCSE</dt><dd>{_e(diagnostic['validation_mcse'])}</dd>"
+            "</dl>"
+            "<p>A positive search − validation gap means the independent re-run "
+            "was less extreme on the search objective. This is a selection "
+            "diagnostic, not an unbiased estimate of winner&#x27;s-curse bias.</p>"
+        )
+
+    return (
+        '<section id="search-multiplicity">'
+        "<h2>Search Multiplicity</h2>"
+        f"<p>The reported candidate was ranked "
+        f"{_e(summary['candidate_rank_one_based'])} of "
+        f"{_e(summary['evaluated_points'])} evaluated points under "
+        f"<strong>{_e(summary['objective'])}</strong>.</p>"
+        f"{random_coverage}"
+        '<dl class="metrics">'
+        f"<dt>Candidate objective</dt><dd>{_e(summary['candidate_score'])}</dd>"
+        f"<dt>Tied at this score</dt><dd>{_e(summary['tie_count'])}</dd>"
+        f"<dt>Empirical percentile</dt><dd>{_e(summary['empirical_percentile'])}</dd>"
+        f"<dt>Empirical upper-tail fraction</dt>"
+        f"<dd>{_e(summary['empirical_upper_tail_fraction'])}</dd>"
+        f"<dt>Objective median</dt><dd>{_e(summary['objective_median'])}</dd>"
+        f"<dt>Objective p95</dt><dd>{_e(summary['objective_p95'])}</dd>"
+        f"<dt>Candidate − median</dt><dd>{_e(summary['candidate_minus_median'])}</dd>"
+        f"<dt>Candidate − p95</dt><dd>{_e(summary['candidate_minus_p95'])}</dd>"
+        f"<dt>Outside tolerance</dt>"
+        f"<dd>{_e(summary['outside_tolerance_count'])}/"
+        f"{_e(summary['evaluated_points'])} "
+        f"({_e(summary['outside_tolerance_fraction'])})</dd>"
+        "</dl>"
+        "<p><strong>Exploratory-selection warning:</strong> the percentile and "
+        "upper-tail fraction describe rank among the objective scores that were "
+        "actually evaluated. They are not p-values, do not provide family-wise "
+        "error control, and do not remove winner&#x27;s-curse/selection effects. "
+        "Important candidates should be confirmed with independent validation.</p>"
+        f"{selection_html}"
+        "</section>"
+    )
+
+
 def _failure_map_html(failure_map: FailureMap2D) -> str:
     head = "".join(
         f"<th>{_e(value)}</th>"
@@ -305,6 +367,7 @@ code {{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }}
 <strong>Evaluated points:</strong> {_e(len(report.search.records))}</p>
 </div>
 </header>
+{_multiplicity_html(report)}
 {_validation_html(report)}
 {failure_map_html}
 {_shrink_html(report)}

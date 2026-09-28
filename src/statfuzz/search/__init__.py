@@ -10,6 +10,12 @@ from .family import (
     shrink_dgp_family,
 )
 from .grid import GridSearchResult, grid_search
+from .multiplicity import (
+    SearchMultiplicitySummary,
+    SelectionEffectDiagnostic,
+    summarize_search_multiplicity,
+    summarize_selection_effect,
+)
 from .objective import (
     AbsoluteDeviationObjective,
     NegativeDeviationObjective,
@@ -50,9 +56,11 @@ __all__ = [
     "ParameterSpace",
     "PositiveDeviationObjective",
     "RandomSearchResult",
+    "SearchMultiplicitySummary",
     "SearchObjective",
     "SearchRecord",
     "SearchResult",
+    "SelectionEffectDiagnostic",
     "ShrinkDimension",
     "ShrinkPlan",
     "ShrinkStep",
@@ -61,5 +69,7 @@ __all__ = [
     "random_search",
     "shrink_counterexample",
     "shrink_dgp_family",
+    "summarize_search_multiplicity",
+    "summarize_selection_effect",
     "validate_candidate",
 ]

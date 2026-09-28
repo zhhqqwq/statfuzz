@@ -237,3 +237,61 @@ discovery = find_counterexample(
 ```
 
 The search simulation budget still applies to every sampled point, and the independent validation budget still applies only to the selected candidate.
+
+
+## Multiplicity-aware reporting
+
+Search ranking is exploratory. If StatFuzz evaluates many noisy Monte Carlo estimates and then reports the most extreme objective score, the selected maximum is exposed to a selection / winner's-curse effect.
+
+StatFuzz now makes that selection opportunity explicit:
+
+```python
+from statfuzz.search import summarize_search_multiplicity
+
+summary = summarize_search_multiplicity(search)
+```
+
+The summary records:
+
+```text
+evaluated points / selection opportunities
+candidate rank
+tie count
+candidate objective score
+empirical percentile
+empirical upper-tail fraction
+objective min / median / p90 / p95 / max
+candidate - median
+candidate - p95
+OUTSIDE_TOLERANCE count / fraction
+```
+
+For a unique top candidate selected from 100 evaluated points, the empirical upper-tail fraction is `1 / 100`. This is a descriptive rank among the scores that were actually evaluated. It is **not a p-value**, does not imply family-wise error control, and does not correct arbitrary search objectives into formal inferential quantities.
+
+Quantiles use deterministic linear interpolation over the observed objective-score distribution.
+
+For random search, the multiplicity count is the number of points actually evaluated (`draws`), while `space_size` and `coverage_fraction` remain separate metadata. StatFuzz does not pretend that unevaluated random-search points were compared.
+
+### Search-to-validation selection diagnostic
+
+When independent validation exists:
+
+```python
+from statfuzz.search import summarize_selection_effect
+
+diagnostic = summarize_selection_effect(search, validation)
+```
+
+StatFuzz reports the search-stage objective score, independent validation objective score, and:
+
+```text
+search_minus_validation_gap
+=
+search score - validation score
+```
+
+A positive gap means the independently re-estimated candidate was less extreme on the same objective.
+
+This gap is intentionally called a **selection diagnostic**, not an estimate of selection bias. It can reflect search selection, Monte Carlo noise, different simulation budgets, and the true finite-sample behavior of the selected DGP point.
+
+Independent validation remains the confirmation layer.

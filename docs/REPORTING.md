@@ -41,7 +41,7 @@ All optional sections are omitted as `null` when they are not supplied.
 
 ## Stable JSON schema
 
-Every report contains a `schema_version`. The current schema version is `1.0`.
+Every report contains a `schema_version`. The current schema version is `1.1`.
 
 ```python
 report.write_json("statfuzz-report.json")
@@ -124,3 +124,16 @@ User-provided strings are HTML-escaped.
 A failure map visualizes the experiments that were actually evaluated. It does not fill missing random-search cells by interpolation.
 
 Likewise, the report preserves the existing distinction between exploratory search and independent validation. Rendering a candidate in a polished HTML page does not strengthen the underlying statistical evidence.
+
+
+## Search multiplicity metadata
+
+Every report now includes a `search.multiplicity` snapshot for the top-ranked search candidate.
+
+It records the number of evaluated selection opportunities, tie-aware empirical rank information, objective-score distribution summaries, and the fraction of evaluated points outside the engineering tolerance.
+
+The HTML renderer shows this information in a dedicated **Search Multiplicity** section and explicitly labels it exploratory. The empirical percentile and upper-tail fraction are not p-values.
+
+When a `CandidateValidationResult` is supplied to `build_report`, the report also contains `selection_effect` with the search objective score, independent validation objective score, their gap, both MCSE values, both simulation budgets, and both stage statuses.
+
+A positive search-minus-validation gap is evidence that the independent re-run was less extreme on the chosen objective. The report does not label that gap as an unbiased winner's-curse estimate.

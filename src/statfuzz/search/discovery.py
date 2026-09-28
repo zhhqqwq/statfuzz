@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from ..result import StressTestResult
 from .budget import DiscoveryBudget
 from .grid import grid_search
+from .multiplicity import summarize_selection_effect
 from .objective import ObjectiveLike
 from .random import random_search
 from .result import SearchResult
@@ -38,6 +39,7 @@ class CounterexampleDiscoveryResult:
     def as_row(self) -> dict[str, object]:
         row = self.validation.as_row()
         selected = self.search.ranked()[self.validation.candidate_rank]
+        diagnostic = summarize_selection_effect(self.search, self.validation)
         row.update(
             {
                 "objective": self.search.objective_name,
@@ -45,6 +47,22 @@ class CounterexampleDiscoveryResult:
                 "search_points": len(self.search.records),
                 "search_budget": self.budget.search_simulations,
                 "validation_budget": self.budget.validation_simulations,
+                "search_candidate_rank": diagnostic.candidate_rank,
+                "search_candidate_rank_one_based": diagnostic.candidate_rank + 1,
+                "search_empirical_percentile": (
+                    diagnostic.multiplicity.empirical_percentile
+                ),
+                "search_empirical_upper_tail_fraction": (
+                    diagnostic.multiplicity.empirical_upper_tail_fraction
+                ),
+                "search_objective_median": (
+                    diagnostic.multiplicity.objective_median
+                ),
+                "search_objective_p95": diagnostic.multiplicity.objective_p95,
+                "validation_objective_score": diagnostic.validation_score,
+                "search_minus_validation_gap": (
+                    diagnostic.search_minus_validation_gap
+                ),
             }
         )
         return row
