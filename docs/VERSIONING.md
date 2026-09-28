@@ -14,7 +14,7 @@ src/statfuzz/_version.py
 `pyproject.toml` reads that value dynamically, and `statfuzz.__version__` imports the
 same value. Do not maintain a second hard-coded package version.
 
-The first public release candidate is **0.1.0**.
+The first public release is **0.1.0**, released on **2026-09-28**.
 
 ## Roadmap labels are not package versions
 
