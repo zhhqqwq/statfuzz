@@ -3,7 +3,7 @@
 from ._version import __version__
 from .nulls import MeanEqualityNull, MeanNullCheck
 from .result import StressTestResult
-from .simulation import stress_test
+from .simulation import SimulationProgress, stress_test
 from .statci import (
     RegressionPolicy,
     StatCIRegressionError,
@@ -26,6 +26,7 @@ __all__ = [
     "MeanEqualityNull",
     "MeanNullCheck",
     "RegressionPolicy",
+    "SimulationProgress",
     "StatCIRegressionError",
     "StatCIResult",
     "StatCIStatusArtifact",

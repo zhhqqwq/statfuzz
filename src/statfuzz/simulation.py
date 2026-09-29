@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -13,6 +15,16 @@ from .nulls import MeanEqualityNull, verify_mean_equality_null
 from .result import StressTestResult
 
 DEFAULT_BATCH_SIZE = 64
+
+
+@dataclass(frozen=True)
+class SimulationProgress:
+    """Immutable snapshot emitted after a completed logical simulation batch."""
+
+    completed: int
+    total: int
+    rejections: int
+    empirical: float
 
 
 def _checked_sample(
@@ -90,6 +102,7 @@ def _simulate_rejections(
     alpha: float,
     rng: np.random.Generator,
     batch_size: int,
+    progress_callback: Callable[[SimulationProgress], object] | None = None,
 ) -> int:
     """Run logical replicates without letting batch boundaries alter RNG use."""
 
@@ -126,6 +139,16 @@ def _simulate_rejections(
         )
         rejections += int(np.count_nonzero(pvalues < alpha))
 
+        if progress_callback is not None:
+            progress_callback(
+                SimulationProgress(
+                    completed=batch_stop,
+                    total=simulations,
+                    rejections=rejections,
+                    empirical=rejections / batch_stop,
+                )
+            )
+
     return rejections
 
 
@@ -145,12 +168,17 @@ def stress_test(
     confidence_level: float = 0.95,
     interval_method: str = "wilson",
     batch_size: int = DEFAULT_BATCH_SIZE,
+    progress_callback: Callable[[SimulationProgress], object] | None = None,
 ) -> StressTestResult:
     """Estimate a statistical method's finite-sample property by Monte Carlo.
 
     Logical replicates always consume randomness in the same order. batch_size
     changes only when already-generated samples are statistically evaluated.
     batch_size=1 uses the original scalar Welch reference path.
+
+    progress_callback is invoked only after a complete logical batch has been
+    evaluated and committed to the cumulative rejection count. Its return value
+    is ignored, and callback identity is not part of the statistical experiment.
     """
 
     if method != "welch_ttest":
@@ -171,6 +199,8 @@ def stress_test(
         or batch_size <= 0
     ):
         raise ValueError("batch_size must be a positive integer")
+    if progress_callback is not None and not callable(progress_callback):
+        raise TypeError("progress_callback must be callable or None")
     if not math.isfinite(alpha) or not 0 < alpha < 1:
         raise ValueError("alpha must be finite and strictly between 0 and 1")
     if not math.isfinite(tolerance) or tolerance < 0:
@@ -199,6 +229,7 @@ def stress_test(
         alpha=alpha,
         rng=rng,
         batch_size=batch_size,
+        progress_callback=progress_callback,
     )
 
     evidence = type1_error_evidence(
