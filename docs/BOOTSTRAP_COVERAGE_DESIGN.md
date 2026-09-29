@@ -526,3 +526,21 @@ The governing principle remains:
 
 > improve the credibility of the statistical result before expanding the number
 > of statistical methods.
+
+
+## 17. Bootstrap Phase B1 implementation status
+
+Phase B1 implements the mean-truth contract only.
+
+- `MeanTarget` records an explicit population-mean declaration;
+- `MeanTargetCheck` records the resolved truth evidence;
+- built-in DGPs resolve automatically through their finite `population_mean`;
+- custom DGPs without a population mean require an explicit declaration;
+- a declaration that conflicts with a known DGP population mean fails before
+  simulation;
+- non-finite declared or DGP population means fail loudly;
+- resolved checks have stable `as_dict()/from_dict()` serialization for later
+  result/fingerprint integration.
+
+Bootstrap resampling, percentile intervals, child RNG derivation, and coverage
+execution remain out of scope after Phase B1.

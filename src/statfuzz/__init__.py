@@ -21,10 +21,13 @@ from .statci import (
     write_github_summary,
     write_regression_summary,
 )
+from .targets import MeanTarget, MeanTargetCheck
 
 __all__ = [
     "MeanEqualityNull",
     "MeanNullCheck",
+    "MeanTarget",
+    "MeanTargetCheck",
     "RegressionPolicy",
     "SimulationProgress",
     "StatCIRegressionError",
