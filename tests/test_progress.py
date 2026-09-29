@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 import copy
 from dataclasses import FrozenInstanceError
 from itertools import pairwise
