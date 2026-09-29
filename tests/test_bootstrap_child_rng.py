@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from statfuzz.methods import (
-    bootstrap_mean_percentile_child_seed,
     bootstrap_mean_percentile_child_rng,
+    bootstrap_mean_percentile_child_seed,
 )
 
 
