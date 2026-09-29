@@ -163,6 +163,21 @@ This invariant is stronger than merely obtaining a similar empirical rejection r
 for a fixed seed and experiment, the logical sequence of replicate outcomes must remain
 identical across supported batch sizes.
 
+### Reproducibility regression matrix
+
+The Phase 1 CI suite treats `batch_size=1` as the scalar reference and compares it
+against `batch_size=2`, `7`, `64`, and a value larger than the simulation budget.
+
+The regression suite covers all four built-in DGPs at representative sample sizes
+`n=10` and `n=37`, and requires the complete `StressTestResult` to compare equal.
+A recording custom DGP separately verifies the exact logical sample-draw sequence.
+An internal executor test uses asymmetric `n1=13` / `n2=17` and requires the final
+NumPy bit-generator state and rejection count to match the scalar reference exactly.
+
+The batched Welch helper is also checked against the scalar oracle for rejection
+decisions and zero-variance overrides. These tests intentionally verify execution
+semantics rather than accepting approximate Monte Carlo agreement.
+
 ## Next design step
 
 After Phase 1 is benchmarked against the frozen pre-batching baseline:
