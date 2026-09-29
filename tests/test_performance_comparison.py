@@ -90,6 +90,7 @@ def test_compare_performance_rejects_mismatched_matrix(tmp_path):
         cwd=root,
         capture_output=True,
         text=True,
+        check=False,
     )
 
     assert completed.returncode != 0
