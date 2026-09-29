@@ -94,8 +94,17 @@ JSON schema version `1.1` contains:
 - microseconds per replicate;
 - diagnostic component/end-to-end ratios.
 
-The GitHub Actions workflow uploads both files as artifacts and writes the Markdown table
-to the job summary.
+The GitHub Actions workflow now runs two full matrices on the **same runner**:
+
+- scalar reference: `batch_size=1`;
+- Phase 1 candidate: `batch_size=64`.
+
+It then uses `benchmarks/compare_performance.py` to pair all 36 matching scenarios and
+produce a same-run speedup comparison. This avoids attributing runner-to-runner CPU
+differences to batching.
+
+The workflow uploads the scalar, batched, and comparison JSON/Markdown files as
+artifacts, and writes the paired comparison plus batched table to the job summary.
 
 ## Running a small local check
 
@@ -128,7 +137,10 @@ replicate. The default execution batch size is 64; `batch_size=1` uses the origi
 scalar Welch reference path.
 
 The benchmark CLI records the end-to-end execution batch size and accepts
-`--batch-size 1` for direct scalar-reference measurements.
+`--batch-size 1` for direct scalar-reference measurements. The canonical Actions
+workflow runs `batch_size=1` and `batch_size=64` sequentially on the same hosted
+runner before computing speedup, so the Phase 1 performance claim does not depend on
+cross-runner comparisons.
 
 ## Batching reproducibility contract
 
