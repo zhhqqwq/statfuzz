@@ -6,7 +6,6 @@ from statfuzz.methods import (
     bootstrap_mean_percentile_child_seed,
 )
 
-
 ROOT_SEED = 20260930
 
 EXPECTED_CHILD_SEEDS = {
