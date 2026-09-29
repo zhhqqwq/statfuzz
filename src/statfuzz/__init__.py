@@ -2,6 +2,7 @@
 
 from ._version import __version__
 from .nulls import MeanEqualityNull, MeanNullCheck
+from .targets import MeanTarget, MeanTargetCheck
 from .result import StressTestResult
 from .simulation import SimulationProgress, stress_test
 from .statci import (
@@ -25,6 +26,8 @@ from .statci import (
 __all__ = [
     "MeanEqualityNull",
     "MeanNullCheck",
+    "MeanTarget",
+    "MeanTargetCheck",
     "RegressionPolicy",
     "SimulationProgress",
     "StatCIRegressionError",
