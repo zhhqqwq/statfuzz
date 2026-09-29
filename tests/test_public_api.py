@@ -18,6 +18,8 @@ def test_top_level_public_api_is_intentionally_small():
     expected = {
         "MeanEqualityNull",
         "MeanNullCheck",
+        "MeanTarget",
+        "MeanTargetCheck",
         "RegressionPolicy",
         "SimulationProgress",
         "StatCIRegressionError",
