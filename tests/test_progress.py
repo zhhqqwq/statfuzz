@@ -5,8 +5,9 @@ from itertools import pairwise
 import numpy as np
 import pytest
 
-from statfuzz import SimulationProgress, simulation, stress_test
+from statfuzz import simulation, stress_test
 from statfuzz.dgp import DGPIdentity, Normal
+from statfuzz.simulation import SimulationProgress
 
 
 BATCH_SIZES = (1, 2, 7, 64, 1_000)
