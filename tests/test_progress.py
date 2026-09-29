@@ -1,15 +1,14 @@
 import copy
 from dataclasses import FrozenInstanceError
-from importlib import import_module
+from itertools import pairwise
 
 import numpy as np
 import pytest
 
-from statfuzz import SimulationProgress, stress_test
+from statfuzz import SimulationProgress, simulation, stress_test
 from statfuzz.dgp import DGPIdentity, Normal
 
 
-simulation_module = import_module("statfuzz.simulation")
 BATCH_SIZES = (1, 2, 7, 64, 1_000)
 
 
@@ -44,7 +43,7 @@ def test_progress_is_emitted_after_each_committed_logical_batch():
     assert all(event.total == 10 for event in events)
     assert all(
         left.completed < right.completed
-        for left, right in zip(events, events[1:])
+        for left, right in pairwise(events)
     )
     assert all(0 <= event.rejections <= event.completed for event in events)
     assert all(
@@ -87,7 +86,7 @@ def test_progress_callback_preserves_final_numpy_rng_state(batch_size):
     observed_rng = np.random.default_rng(12345)
     events = []
 
-    reference_rejections = simulation_module._simulate_rejections(
+    reference_rejections = simulation._simulate_rejections(
         dgp=dgp,
         other=dgp,
         n1=13,
@@ -97,7 +96,7 @@ def test_progress_callback_preserves_final_numpy_rng_state(batch_size):
         rng=reference_rng,
         batch_size=batch_size,
     )
-    observed_rejections = simulation_module._simulate_rejections(
+    observed_rejections = simulation._simulate_rejections(
         dgp=dgp,
         other=dgp,
         n1=13,
