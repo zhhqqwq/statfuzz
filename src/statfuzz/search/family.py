@@ -5,14 +5,14 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .shrink import (
     FailureCriterion,
     OutsideToleranceCriterion,
 )
 from .space import JSONScalar, ParameterPoint, _validate_scalar
 
-FamilyShrinkEvaluator = Callable[["FamilyPoint", int, int], StressTestResult]
+FamilyShrinkEvaluator = Callable[["FamilyPoint", int, int], StatisticalPropertyResult]
 
 
 @dataclass(frozen=True)
@@ -97,7 +97,7 @@ class FamilyShrinkStep:
     from_family: str
     to_family: str
     candidate: FamilyPoint
-    result: StressTestResult
+    result: StatisticalPropertyResult
     seed: int
     accepted: bool
     criterion_name: str
@@ -129,9 +129,9 @@ class FamilyShrinkStep:
 @dataclass(frozen=True)
 class FamilyShrinkResult:
     start: FamilyPoint
-    start_result: StressTestResult
+    start_result: StatisticalPropertyResult
     final: FamilyPoint
-    final_result: StressTestResult
+    final_result: StatisticalPropertyResult
     steps: tuple[FamilyShrinkStep, ...]
     plan: FamilyShrinkPlan
     criterion_name: str
@@ -182,12 +182,12 @@ def _evaluate_family(
     simulations: int,
     root_seed: int,
     stage: str,
-) -> tuple[StressTestResult, int]:
+) -> tuple[StatisticalPropertyResult, int]:
     seed = _family_seed(root_seed, point)
     result = evaluate(point, seed, simulations)
 
-    if not isinstance(result, StressTestResult):
-        raise TypeError(f"{stage} evaluator must return a StressTestResult")
+    if not isinstance(result, StatisticalPropertyResult):
+        raise TypeError(f"{stage} evaluator must return a StatisticalPropertyResult")
     if result.seed != seed:
         raise ValueError(
             f"{stage} evaluator must pass the provided seed through to stress_test"

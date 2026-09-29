@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar, Literal, Protocol, runtime_checkable
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 
 ObjectiveAlias = Literal[
     "absolute_deviation",
@@ -18,7 +18,7 @@ class SearchObjective(Protocol):
 
     name: str
 
-    def score(self, result: StressTestResult) -> float:
+    def score(self, result: StatisticalPropertyResult) -> float:
         """Return a score where larger values rank as more extreme."""
         ...
 
@@ -29,7 +29,7 @@ class AbsoluteDeviationObjective:
 
     name: ClassVar[str] = "absolute_deviation"
 
-    def score(self, result: StressTestResult) -> float:
+    def score(self, result: StatisticalPropertyResult) -> float:
         return abs(result.deviation)
 
 
@@ -39,7 +39,7 @@ class PositiveDeviationObjective:
 
     name: ClassVar[str] = "positive_deviation"
 
-    def score(self, result: StressTestResult) -> float:
+    def score(self, result: StatisticalPropertyResult) -> float:
         return result.deviation
 
 
@@ -49,7 +49,7 @@ class NegativeDeviationObjective:
 
     name: ClassVar[str] = "negative_deviation"
 
-    def score(self, result: StressTestResult) -> float:
+    def score(self, result: StatisticalPropertyResult) -> float:
         return -result.deviation
 
 

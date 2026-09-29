@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .budget import DiscoveryBudget
 from .grid import grid_search
 from .multiplicity import summarize_selection_effect
@@ -13,7 +13,7 @@ from .result import SearchResult
 from .space import ParameterPoint, ParameterSpace
 from .validation import CandidateValidationResult, validate_candidate
 
-DiscoveryEvaluator = Callable[[ParameterPoint, int, int], StressTestResult]
+DiscoveryEvaluator = Callable[[ParameterPoint, int, int], StatisticalPropertyResult]
 
 
 @dataclass(frozen=True)
@@ -29,11 +29,11 @@ class CounterexampleDiscoveryResult:
         return self.validation.point
 
     @property
-    def search_result(self) -> StressTestResult:
+    def search_result(self) -> StatisticalPropertyResult:
         return self.validation.search_result
 
     @property
-    def validation_result(self) -> StressTestResult:
+    def validation_result(self) -> StatisticalPropertyResult:
         return self.validation.validation_result
 
     def as_row(self) -> dict[str, object]:
@@ -75,11 +75,11 @@ def _run_budgeted(
     seed: int,
     simulations: int,
     stage: str,
-) -> StressTestResult:
+) -> StatisticalPropertyResult:
     result = evaluate(point, seed, simulations)
-    if not isinstance(result, StressTestResult):
+    if not isinstance(result, StatisticalPropertyResult):
         raise TypeError(
-            f"{stage} evaluator must return a StressTestResult"
+            f"{stage} evaluator must return a StatisticalPropertyResult"
         )
     if result.simulations != simulations:
         raise ValueError(
@@ -120,7 +120,7 @@ def find_counterexample(
     if search_root_seed == validation_root_seed:
         raise ValueError("search_root_seed and validation_root_seed must differ")
 
-    def search_stage(point: ParameterPoint, seed: int | None) -> StressTestResult:
+    def search_stage(point: ParameterPoint, seed: int | None) -> StatisticalPropertyResult:
         if seed is None:
             raise RuntimeError("search seed unexpectedly resolved to None")
         return _run_budgeted(
@@ -131,7 +131,7 @@ def find_counterexample(
             stage="search",
         )
 
-    def validation_stage(point: ParameterPoint, seed: int) -> StressTestResult:
+    def validation_stage(point: ParameterPoint, seed: int) -> StatisticalPropertyResult:
         return _run_budgeted(
             evaluate=validation_evaluate,
             point=point,

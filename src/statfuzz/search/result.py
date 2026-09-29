@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .objective import SearchObjective
 from .space import ParameterPoint
 
@@ -11,7 +11,7 @@ from .space import ParameterPoint
 @dataclass(frozen=True)
 class SearchRecord:
     point: ParameterPoint
-    result: StressTestResult
+    result: StatisticalPropertyResult
     seed: int | None
 
     @property
