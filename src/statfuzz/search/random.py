@@ -4,13 +4,13 @@ import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .grid import _point_seed
 from .objective import ObjectiveLike, resolve_objective
 from .result import SearchRecord, SearchResult
 from .space import ParameterPoint, ParameterSpace
 
-Evaluator = Callable[[ParameterPoint, int | None], StressTestResult]
+Evaluator = Callable[[ParameterPoint, int | None], StatisticalPropertyResult]
 _UINT64_SIZE = 1 << 64
 
 
@@ -125,8 +125,8 @@ def random_search(
             raise RuntimeError("random-search child seed unexpectedly resolved to None")
 
         result = evaluate(point, child_seed)
-        if not isinstance(result, StressTestResult):
-            raise TypeError("evaluate(point, seed) must return a StressTestResult")
+        if not isinstance(result, StatisticalPropertyResult):
+            raise TypeError("evaluate(point, seed) must return a StatisticalPropertyResult")
         if result.seed != child_seed:
             raise ValueError(
                 "the evaluator must pass the provided seed through to stress_test "

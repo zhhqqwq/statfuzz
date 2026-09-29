@@ -6,12 +6,12 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .grid import _point_seed
 from .objective import ObjectiveLike, SearchObjective, resolve_objective
 from .space import JSONScalar, ParameterPoint, _validate_scalar
 
-ShrinkEvaluator = Callable[[ParameterPoint, int, int], StressTestResult]
+ShrinkEvaluator = Callable[[ParameterPoint, int, int], StatisticalPropertyResult]
 
 
 class FailureCriterion(Protocol):
@@ -21,19 +21,19 @@ class FailureCriterion(Protocol):
     def name(self) -> str:
         ...
 
-    def is_failure(self, result: StressTestResult) -> bool:
+    def is_failure(self, result: StatisticalPropertyResult) -> bool:
         ...
 
 
 @dataclass(frozen=True)
 class OutsideToleranceCriterion:
-    """Preserve the StressTestResult OUTSIDE_TOLERANCE condition."""
+    """Preserve the StatisticalPropertyResult OUTSIDE_TOLERANCE condition."""
 
     @property
     def name(self) -> str:
         return "outside_tolerance"
 
-    def is_failure(self, result: StressTestResult) -> bool:
+    def is_failure(self, result: StatisticalPropertyResult) -> bool:
         return not result.passed
 
 
@@ -60,7 +60,7 @@ class ObjectiveThresholdCriterion:
             f"{self.minimum_score:g}"
         )
 
-    def is_failure(self, result: StressTestResult) -> bool:
+    def is_failure(self, result: StatisticalPropertyResult) -> bool:
         score = float(self.resolved_objective.score(result))
         if not math.isfinite(score):
             raise ValueError(
@@ -164,7 +164,7 @@ class ShrinkStep:
     from_value: JSONScalar
     to_value: JSONScalar
     point: ParameterPoint
-    result: StressTestResult
+    result: StatisticalPropertyResult
     seed: int
     accepted: bool
     criterion_name: str
@@ -195,9 +195,9 @@ class ShrinkStep:
 @dataclass(frozen=True)
 class CounterexampleShrinkResult:
     start_point: ParameterPoint
-    start_result: StressTestResult
+    start_result: StatisticalPropertyResult
     final_point: ParameterPoint
-    final_result: StressTestResult
+    final_result: StatisticalPropertyResult
     steps: tuple[ShrinkStep, ...]
     plan: ShrinkPlan
     criterion_name: str
@@ -235,14 +235,14 @@ def _evaluate_shrink_point(
     simulations: int,
     root_seed: int,
     stage: str,
-) -> tuple[StressTestResult, int]:
+) -> tuple[StatisticalPropertyResult, int]:
     seed = _point_seed(root_seed, point)
     if seed is None:
         raise RuntimeError("shrink seed unexpectedly resolved to None")
 
     result = evaluate(point, seed, simulations)
-    if not isinstance(result, StressTestResult):
-        raise TypeError(f"{stage} evaluator must return a StressTestResult")
+    if not isinstance(result, StatisticalPropertyResult):
+        raise TypeError(f"{stage} evaluator must return a StatisticalPropertyResult")
     if result.seed != seed:
         raise ValueError(
             f"{stage} evaluator must pass the provided seed through to stress_test"

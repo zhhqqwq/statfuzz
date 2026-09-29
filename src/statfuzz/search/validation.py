@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .grid import _point_seed
 from .result import SearchResult
 from .space import ParameterPoint
 
-ValidationEvaluator = Callable[[ParameterPoint, int], StressTestResult]
+ValidationEvaluator = Callable[[ParameterPoint, int], StatisticalPropertyResult]
 
 
 @dataclass(frozen=True)
@@ -17,8 +17,8 @@ class CandidateValidationResult:
 
     candidate_rank: int
     point: ParameterPoint
-    search_result: StressTestResult
-    validation_result: StressTestResult
+    search_result: StatisticalPropertyResult
+    validation_result: StatisticalPropertyResult
     search_root_seed: int | None
     validation_root_seed: int
     search_seed: int | None
@@ -100,8 +100,8 @@ def validate_candidate(
         raise RuntimeError("validation seed collided with the search seed")
 
     validation_result = evaluate(selected.point, validation_seed)
-    if not isinstance(validation_result, StressTestResult):
-        raise TypeError("evaluate(point, seed) must return a StressTestResult")
+    if not isinstance(validation_result, StatisticalPropertyResult):
+        raise TypeError("evaluate(point, seed) must return a StatisticalPropertyResult")
     if validation_result.seed != validation_seed:
         raise ValueError(
             "the validation evaluator must pass the provided seed through to "

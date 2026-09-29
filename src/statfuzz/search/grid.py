@@ -4,12 +4,12 @@ import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .objective import ObjectiveLike, resolve_objective
 from .result import SearchRecord, SearchResult
 from .space import ParameterPoint, ParameterSpace
 
-Evaluator = Callable[[ParameterPoint, int | None], StressTestResult]
+Evaluator = Callable[[ParameterPoint, int | None], StatisticalPropertyResult]
 
 
 def _point_seed(root_seed: int | None, point: ParameterPoint) -> int | None:
@@ -37,7 +37,7 @@ def grid_search(
 ) -> GridSearchResult:
     """Evaluate every point in a finite parameter space.
 
-    The caller supplies evaluate(point, seed) and must return a StressTestResult.
+    The caller supplies evaluate(point, seed) and must return a StatisticalPropertyResult.
     The search layer does not know how to build DGPs or run statistical methods.
 
     Each point receives a deterministic child seed derived from the root seed
@@ -53,8 +53,8 @@ def grid_search(
     for point in space:
         child_seed = _point_seed(seed, point)
         result = evaluate(point, child_seed)
-        if not isinstance(result, StressTestResult):
-            raise TypeError("evaluate(point, seed) must return a StressTestResult")
+        if not isinstance(result, StatisticalPropertyResult):
+            raise TypeError("evaluate(point, seed) must return a StatisticalPropertyResult")
         if result.seed != child_seed:
             raise ValueError(
                 "the evaluator must pass the provided seed through to stress_test "

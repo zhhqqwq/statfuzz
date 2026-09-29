@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from scipy.stats import binomtest
+from .binomial_rate import binomial_rate_evidence
 
 
 @dataclass(frozen=True)
@@ -41,22 +41,21 @@ def type1_error_evidence(
     if interval_method != "wilson":
         raise ValueError("interval_method must currently be 'wilson'")
 
-    empirical = rejections / simulations
-    mcse = math.sqrt(empirical * (1.0 - empirical) / simulations)
-    ci = binomtest(rejections, simulations).proportion_ci(
-        confidence_level=confidence_level,
-        method=interval_method,
-    )
-
-    return Type1ErrorEvidence(
-        rejection_count=rejections,
-        simulations=simulations,
-        empirical=empirical,
-        mcse=mcse,
+    evidence = binomial_rate_evidence(
+        rejections,
+        simulations,
         confidence_level=confidence_level,
         interval_method=interval_method,
-        interval_low=float(ci.low),
-        interval_high=float(ci.high),
+    )
+    return Type1ErrorEvidence(
+        rejection_count=evidence.event_count,
+        simulations=evidence.trials,
+        empirical=evidence.empirical,
+        mcse=evidence.mcse,
+        confidence_level=evidence.confidence_level,
+        interval_method=evidence.interval_method,
+        interval_low=evidence.interval_low,
+        interval_high=evidence.interval_high,
     )
 
 
