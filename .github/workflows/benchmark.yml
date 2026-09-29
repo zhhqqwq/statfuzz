@@ -33,25 +33,50 @@ jobs:
           echo "### CPU" >> "$GITHUB_STEP_SUMMARY"
           lscpu >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run canonical baseline matrix
+      - name: Run scalar reference matrix
         run: |
           python benchmarks/performance_baseline.py \
+            --batch-size 1 \
+            --json-out benchmark-scalar.json \
+            --markdown-out benchmark-scalar.md
+
+      - name: Run Phase 1 batched matrix
+        run: |
+          python benchmarks/performance_baseline.py \
+            --batch-size 64 \
             --json-out benchmark-results.json \
             --markdown-out benchmark-results.md
 
-      - name: Show benchmark baseline
+      - name: Compare scalar and batched execution
+        run: |
+          python benchmarks/compare_performance.py \
+            benchmark-scalar.json \
+            benchmark-results.json \
+            --json-out benchmark-comparison.json \
+            --markdown-out benchmark-comparison.md
+
+      - name: Show paired comparison
+        run: |
+          cat benchmark-comparison.md
+          cat benchmark-comparison.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Show batched benchmark
         run: |
           cat benchmark-results.md
           cat benchmark-results.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Show machine-readable baseline
-        run: cat benchmark-results.json
+      - name: Show machine-readable comparison
+        run: cat benchmark-comparison.json
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4
         with:
           name: statfuzz-performance-baseline
           path: |
+            benchmark-scalar.json
+            benchmark-scalar.md
             benchmark-results.json
             benchmark-results.md
+            benchmark-comparison.json
+            benchmark-comparison.md
           if-no-files-found: error
