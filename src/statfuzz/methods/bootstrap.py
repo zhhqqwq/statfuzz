@@ -5,6 +5,8 @@ import math
 from dataclasses import dataclass
 from numbers import Integral, Real
 
+import numpy as np
+
 BOOTSTRAP_MEAN_PERCENTILE_METHOD = "bootstrap_mean_percentile"
 BOOTSTRAP_MEAN_PERCENTILE_SEMANTICS_VERSION = "1"
 BOOTSTRAP_MEAN_PERCENTILE_QUANTILE_METHOD = "linear"
@@ -117,4 +119,69 @@ class BootstrapMeanPercentile:
         )
 
 
-__all__ = ["BootstrapMeanPercentile"]
+def _as_finite_bootstrap_sample(sample: np.ndarray) -> np.ndarray:
+    values = np.asarray(sample, dtype=float)
+    if values.ndim != 1:
+        raise ValueError("sample must be one-dimensional")
+    if values.size == 0:
+        raise ValueError("sample must contain at least one observation")
+    if not np.all(np.isfinite(values)):
+        raise ValueError("sample must contain only finite observations")
+    return values
+
+
+def bootstrap_mean_percentile_interval(
+    sample: np.ndarray,
+    rng: np.random.Generator,
+    method: BootstrapMeanPercentile,
+) -> tuple[float, float]:
+    """Scalar reference oracle for a percentile bootstrap mean interval.
+
+    For each bootstrap replicate, exactly n replacement indices are drawn with
+    one rng.integers(0, n, size=n) call, then the resampled mean is computed.
+    Quantiles are evaluated only after all replicate means exist.
+    """
+
+    values = _as_finite_bootstrap_sample(sample)
+    if not isinstance(rng, np.random.Generator):
+        raise TypeError("rng must be a numpy.random.Generator")
+    if not isinstance(method, BootstrapMeanPercentile):
+        raise TypeError("method must be a BootstrapMeanPercentile")
+
+    n = values.size
+    bootstrap_means = np.empty(method.resamples, dtype=float)
+    for replicate in range(method.resamples):
+        indices = rng.integers(0, n, size=n)
+        with np.errstate(over="ignore", invalid="ignore"):
+            mean = float(np.mean(values[indices]))
+        if not math.isfinite(mean):
+            raise ValueError(
+                f"bootstrap replicate {replicate} mean is non-finite"
+            )
+        bootstrap_means[replicate] = mean
+
+    tail_probability = (1.0 - method.interval_level) / 2.0
+    interval = np.asarray(
+        np.quantile(
+            bootstrap_means,
+            [tail_probability, 1.0 - tail_probability],
+            method=method.quantile_method,
+        ),
+        dtype=float,
+    )
+    if interval.shape != (2,):
+        raise ValueError("bootstrap quantile output has an unexpected shape")
+    if not np.all(np.isfinite(interval)):
+        raise ValueError("bootstrap percentile interval is non-finite")
+
+    low = float(interval[0])
+    high = float(interval[1])
+    if low > high:
+        raise ValueError("bootstrap percentile interval has invalid bounds")
+    return low, high
+
+
+__all__ = [
+    "BootstrapMeanPercentile",
+    "bootstrap_mean_percentile_interval",
+]

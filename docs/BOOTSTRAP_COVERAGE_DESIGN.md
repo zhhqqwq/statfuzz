@@ -563,3 +563,24 @@ Phase B2 implements the immutable percentile-bootstrap method configuration only
 
 Bootstrap sample generation, percentile interval calculation, and child RNG
 derivation remain out of scope after Phase B2.
+
+
+## 19. Bootstrap Phase B3 implementation status
+
+Phase B3 implements the scalar percentile-bootstrap mean interval oracle only.
+
+- the caller supplies a fixed one-dimensional finite sample and an existing
+  NumPy `Generator`;
+- each bootstrap replicate makes exactly one
+  `rng.integers(0, n, size=n)` call;
+- the replicate mean is computed immediately after that index draw;
+- all replicate means are completed before the percentile quantiles are
+  evaluated;
+- the interval uses the method contract's only supported quantile method,
+  `linear`;
+- non-finite replicate means and invalid samples fail loudly;
+- fixed-PCG64 reference tests lock the known resample indices, replicate means,
+  interval result, and final RNG consumption.
+
+Child-seed derivation, bootstrap RNG ownership, outer coverage simulation, and
+checkpoint integration remain out of scope after Phase B3.
