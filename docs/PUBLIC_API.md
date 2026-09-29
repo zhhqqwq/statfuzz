@@ -74,6 +74,7 @@ The methods namespace exposes stable statistical-method contracts and reference
 operations:
 
 - `BootstrapMeanPercentile`
+- `bootstrap_mean_percentile_interval`
 - `welch_ttest_pvalue`
 - `welch_ttest_pvalues_batch`
 
@@ -174,3 +175,17 @@ automatically. Custom DGPs that do not expose a population mean must be paired
 with an explicit `MeanTarget(mean=..., note=...)`. The resolved
 `MeanTargetCheck` records whether the truth came from a verified DGP
 population mean or from an explicit caller declaration.
+
+
+## Scalar bootstrap percentile reference oracle
+
+`bootstrap_mean_percentile_interval(sample, rng, method)` is the scalar
+reference implementation for the first bootstrap method. It consumes a caller
+provided NumPy `Generator` and, for each configured bootstrap replicate,
+performs exactly one `rng.integers(0, n, size=n)` replacement-index draw,
+computes that resampled mean, and only after all replicate means are complete
+evaluates the two percentile quantiles using the method's locked
+`quantile_method="linear"`.
+
+The function does not derive seeds or create child generators. RNG ownership
+and child-stream derivation are separate concerns for a later phase.
