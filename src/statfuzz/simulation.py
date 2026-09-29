@@ -11,7 +11,7 @@ from .checkpoint import (
     CheckpointFingerprintError,
     ExecutionContract,
 )
-from .dgp import DGPIdentity, DataGenerator
+from .dgp import DataGenerator, DGPIdentity
 from .dgp.base import get_dgp_identity
 from .methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
 from .methods.welch import WelchBatchError
