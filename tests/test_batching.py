@@ -1,14 +1,16 @@
 # ruff: noqa: I001
 import copy
+from importlib import import_module
 
 import numpy as np
 import pytest
 
-import statfuzz.simulation as simulation_module
 from statfuzz import stress_test
 from statfuzz.dgp import DGPIdentity, LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
 
+
+simulation_module = import_module("statfuzz.simulation")
 
 BATCH_SIZES = (1, 2, 7, 64, 1_000)
 
