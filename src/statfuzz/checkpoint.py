@@ -242,6 +242,37 @@ class ExperimentSpec:
             root_seed=seed,
         )
 
+    def bind_dgps(
+        self,
+        *,
+        dgp: object,
+        dgp2: object | None = None,
+    ) -> ExperimentSpec:
+        """Rebuild this semantic experiment against concrete runtime DGPs."""
+
+        declaration = None
+        if self.null_check.source == "declaration" or self.null_check.note is not None:
+            declaration = MeanEqualityNull(
+                mean=self.null_check.common_mean,
+                note=self.null_check.note,
+            )
+
+        return type(self).from_stress_test_config(
+            method=self.method,
+            metric=self.metric,
+            dgp=dgp,
+            dgp2=dgp2,
+            n1=self.n1,
+            n2=self.n2,
+            simulations=self.simulations,
+            alpha=self.alpha,
+            tolerance=self.tolerance,
+            seed=self.root_seed,
+            null=declaration,
+            confidence_level=self.confidence_level,
+            interval_method=self.interval_method,
+        )
+
     def as_dict(self) -> dict[str, object]:
         return {
             "schema": self.schema,
@@ -654,6 +685,37 @@ class RNGSnapshot:
 
     def raw_state(self) -> object:
         return decode_rng_state(self.state)
+
+    def restore_generator(self) -> np.random.Generator:
+        """Restore the exact supported NumPy Generator represented by this snapshot."""
+
+        supported_classes = (
+            np.random.PCG64,
+            np.random.PCG64DXSM,
+            np.random.MT19937,
+            np.random.Philox,
+            np.random.SFC64,
+        )
+        bit_generator_class = None
+        for candidate in supported_classes:
+            probe = candidate(0)
+            if _qualified_type_name(probe) == self.bit_generator:
+                bit_generator_class = candidate
+                break
+
+        if bit_generator_class is None:
+            raise CheckpointSchemaError(
+                f"unsupported BitGenerator class {self.bit_generator!r}"
+            )
+
+        bit_generator = bit_generator_class(0)
+        try:
+            bit_generator.state = self.raw_state()
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise CheckpointSchemaError(
+                "checkpoint contains an invalid BitGenerator state"
+            ) from exc
+        return np.random.Generator(bit_generator)
 
     def as_dict(self) -> dict[str, object]:
         return {
