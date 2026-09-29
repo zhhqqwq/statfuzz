@@ -251,3 +251,115 @@ def test_resumable_executor_rejects_invalid_committed_state(
             start_index=start_index,
             initial_rejections=initial_rejections,
         )
+
+
+CROSS_BATCH_CASES = (
+    pytest.param(1, 2, 17, id="1-to-2"),
+    pytest.param(1, 7, 17, id="1-to-7"),
+    pytest.param(1, 64, 17, id="1-to-64"),
+    pytest.param(1, 1_000, 17, id="1-to-over-remaining"),
+    pytest.param(2, 1, 18, id="2-to-1"),
+    pytest.param(2, 7, 18, id="2-to-7"),
+    pytest.param(2, 64, 18, id="2-to-64"),
+    pytest.param(2, 1_000, 18, id="2-to-over-remaining"),
+    pytest.param(7, 1, 21, id="7-to-1"),
+    pytest.param(7, 2, 21, id="7-to-2"),
+    pytest.param(7, 64, 21, id="7-to-64"),
+    pytest.param(7, 1_000, 21, id="7-to-over-remaining"),
+    pytest.param(64, 1, 64, id="64-to-1"),
+    pytest.param(64, 2, 64, id="64-to-2"),
+    pytest.param(64, 7, 64, id="64-to-7"),
+    pytest.param(64, 1_000, 64, id="64-to-over-remaining"),
+)
+
+
+class _RecordingDGP:
+    def __init__(self, delegate):
+        self.delegate = delegate
+        self.draws = []
+
+    @property
+    def name(self):
+        return self.delegate.name
+
+    @property
+    def identity(self):
+        return self.delegate.identity
+
+    @property
+    def population_mean(self):
+        return self.delegate.population_mean
+
+    def sample(self, rng, n):
+        sample = self.delegate.sample(rng, n)
+        self.draws.append(np.asarray(sample).copy())
+        return sample
+
+
+@pytest.mark.parametrize("dgp_factory", DGP_FACTORIES)
+@pytest.mark.parametrize(
+    ("pre_batch_size", "post_batch_size", "completed"),
+    CROSS_BATCH_CASES,
+)
+def test_cross_batch_resume_is_exactly_equivalent_to_uninterrupted_run(
+    dgp_factory,
+    pre_batch_size,
+    post_batch_size,
+    completed,
+):
+    resumed_dgp = _RecordingDGP(dgp_factory())
+    checkpoint = _make_checkpoint(
+        resumed_dgp,
+        batch_size=pre_batch_size,
+        completed=completed,
+    )
+
+    assert completed % pre_batch_size == 0
+    assert len(resumed_dgp.draws) == 2 * completed
+
+    resumed_result, resumed_rng = simulation._resume_stress_test(
+        checkpoint=checkpoint,
+        dgp=resumed_dgp,
+        batch_size=post_batch_size,
+    )
+
+    reference_dgp = _RecordingDGP(dgp_factory())
+    reference_result = stress_test(
+        method="welch_ttest",
+        metric="type1_error",
+        dgp=reference_dgp,
+        n1=11,
+        n2=17,
+        simulations=TOTAL_SIMULATIONS,
+        alpha=0.05,
+        tolerance=0.01,
+        seed=SEED,
+        confidence_level=0.95,
+        interval_method="wilson",
+        batch_size=1,
+    )
+
+    reference_rng = np.random.default_rng(SEED)
+    rng_reference_dgp = dgp_factory()
+    reference_rejections = simulation._simulate_rejections(
+        dgp=rng_reference_dgp,
+        other=rng_reference_dgp,
+        n1=11,
+        n2=17,
+        simulations=TOTAL_SIMULATIONS,
+        alpha=0.05,
+        rng=reference_rng,
+        batch_size=1,
+    )
+
+    assert pre_batch_size != post_batch_size
+    assert resumed_result == reference_result
+    assert resumed_result.rejection_count == reference_rejections
+    assert RNGSnapshot.from_generator(resumed_rng).state == (
+        RNGSnapshot.from_generator(reference_rng).state
+    )
+
+    assert len(resumed_dgp.draws) == len(reference_dgp.draws)
+    assert len(reference_dgp.draws) == 2 * TOTAL_SIMULATIONS
+    for actual, expected in zip(resumed_dgp.draws, reference_dgp.draws):
+        np.testing.assert_array_equal(actual, expected)

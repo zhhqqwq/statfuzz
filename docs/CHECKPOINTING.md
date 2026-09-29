@@ -517,5 +517,30 @@ resumed runs for all built-in DGP families, including:
 - final NumPy RNG-state equality;
 - global progress counts after resume.
 
-Phase 3C does **not** claim or test changing `batch_size` across the checkpoint
-boundary. That remains Phase 4.
+Phase 3C established the fixed-`batch_size` resume path. Phase 4 extends
+that validation to changing `batch_size` across the checkpoint boundary.
+
+
+## 15. Phase 4 cross-batch validation status
+
+Phase 4 requires no production-code change. The existing resume semantics are
+now validated across different execution batch sizes before and after a
+checkpoint.
+
+The validation matrix uses committed checkpoints created with
+`batch_size=1/2/7/64` and resumes with a different
+`batch_size=1/2/7/64/>remaining`. For every supported cross-batch pair, all
+four built-in DGP families are checked against an uninterrupted scalar
+reference.
+
+The following invariants are exact:
+
+- complete `StressTestResult` equality;
+- rejection-count equality;
+- complete logical sample order and values
+  (`x1 -> y1 -> x2 -> y2 -> ...`);
+- final NumPy RNG-state equality.
+
+This confirms that `batch_size` remains execution scheduling only: it is not
+part of experiment identity or seed derivation, and changing it after a
+committed checkpoint does not change the statistical experiment.
