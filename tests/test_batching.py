@@ -6,7 +6,7 @@ import pytest
 
 import statfuzz.simulation as simulation_module
 from statfuzz import stress_test
-from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
+from statfuzz.dgp import DGPIdentity, LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
 
 
@@ -47,6 +47,10 @@ def test_stress_result_is_exactly_batch_size_invariant(dgp, n):
 class _RecordingNormal:
     name = "recording-normal"
     population_mean = 0.0
+    identity = DGPIdentity.from_mapping(
+        "tests.RecordingNormal",
+        {"mean": 0.0, "sd": 1.0},
+    )
 
     def __init__(self):
         self.draws: list[tuple[float, ...]] = []
