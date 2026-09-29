@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
+from numbers import Integral, Real
 
 BOOTSTRAP_MEAN_PERCENTILE_METHOD = "bootstrap_mean_percentile"
 BOOTSTRAP_MEAN_PERCENTILE_SEMANTICS_VERSION = "1"
@@ -18,17 +19,22 @@ class BootstrapMeanPercentile:
     quantile_method: str = BOOTSTRAP_MEAN_PERCENTILE_QUANTILE_METHOD
 
     def __post_init__(self) -> None:
-        if isinstance(self.resamples, bool) or not isinstance(self.resamples, int):
+        if isinstance(self.resamples, bool) or not isinstance(
+            self.resamples,
+            Integral,
+        ):
             raise TypeError("resamples must be an integer")
-        if self.resamples <= 0:
+        resamples = int(self.resamples)
+        if resamples <= 0:
             raise ValueError("resamples must be positive")
+        object.__setattr__(self, "resamples", resamples)
 
-        if isinstance(self.interval_level, bool):
+        if isinstance(self.interval_level, bool) or not isinstance(
+            self.interval_level,
+            Real,
+        ):
             raise TypeError("interval_level must be a real number")
-        try:
-            interval_level = float(self.interval_level)
-        except (TypeError, ValueError) as exc:
-            raise TypeError("interval_level must be a real number") from exc
+        interval_level = float(self.interval_level)
         if not math.isfinite(interval_level):
             raise ValueError("interval_level must be finite")
         if not 0.0 < interval_level < 1.0:
