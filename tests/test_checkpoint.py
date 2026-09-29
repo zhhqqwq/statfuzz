@@ -1,5 +1,3 @@
-# ruff: noqa: I001
-import copy
 import json
 import os
 
@@ -158,7 +156,7 @@ def test_rng_state_encoding_round_trips_numpy_scalars_arrays_and_containers():
     decoded = decode_rng_state(encoded)
 
     _assert_nested_equal(decoded, {
-        "large": int(2**63 + 123),
+        "large": 2**63 + 123,
         "array": state["array"],
         "tuple": (7, [0.25, True]),
     })
