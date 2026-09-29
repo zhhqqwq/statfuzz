@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from statfuzz.methods import (
-    bootstrap_mean_percentile_child_rng,
     bootstrap_mean_percentile_child_seed,
+    bootstrap_mean_percentile_child_rng,
 )
 
 
@@ -125,8 +125,8 @@ def test_child_stream_assignment_is_independent_of_request_order():
             index,
         ).integers(0, 2**31, size=32, dtype=np.int64)
 
-    for index in forward:
-        np.testing.assert_array_equal(forward[index], reverse[index])
+    for index, stream in forward.items():
+        np.testing.assert_array_equal(stream, reverse[index])
 
 
 def test_consuming_one_child_stream_does_not_change_another_child_stream():
