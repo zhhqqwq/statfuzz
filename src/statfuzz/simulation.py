@@ -220,10 +220,14 @@ def _validate_execution_controls(
     batch_size: int,
     progress_callback: Callable[[SimulationProgress], object] | None,
 ) -> None:
-    _validate_execution_controls(
-        batch_size=batch_size,
-        progress_callback=progress_callback,
-    )
+    if (
+        not isinstance(batch_size, int)
+        or isinstance(batch_size, bool)
+        or batch_size <= 0
+    ):
+        raise ValueError("batch_size must be a positive integer")
+    if progress_callback is not None and not callable(progress_callback):
+        raise TypeError("progress_callback must be callable or None")
 
 
 def _resume_stress_test(
