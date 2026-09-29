@@ -3,10 +3,10 @@ import copy
 import numpy as np
 import pytest
 
+import statfuzz.simulation as simulation_module
 from statfuzz import stress_test
 from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
-from statfuzz.simulation import _simulate_rejections
 
 
 BATCH_SIZES = (1, 2, 7, 64, 1_000)
@@ -93,7 +93,7 @@ def test_batch_size_preserves_final_numpy_rng_state(batch_size):
     dgp = Normal()
     rng = np.random.default_rng(8472)
 
-    rejections = _simulate_rejections(
+    rejections = simulation_module._simulate_rejections(
         dgp=dgp,
         other=dgp,
         n1=13,
@@ -106,7 +106,7 @@ def test_batch_size_preserves_final_numpy_rng_state(batch_size):
     state = copy.deepcopy(rng.bit_generator.state)
 
     scalar_rng = np.random.default_rng(8472)
-    scalar_rejections = _simulate_rejections(
+    scalar_rejections = simulation_module._simulate_rejections(
         dgp=dgp,
         other=dgp,
         n1=13,
