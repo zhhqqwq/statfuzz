@@ -68,6 +68,19 @@ The mean-preserving semantics documented for these generators are part of their 
 behavior. `DGPIdentity` is the supported structured identity type for custom generators
 that need stable machine-readable matching across runs.
 
+## `statfuzz.methods`
+
+The methods namespace exposes stable statistical-method contracts and reference
+operations:
+
+- `BootstrapMeanPercentile`
+- `welch_ttest_pvalue`
+- `welch_ttest_pvalues_batch`
+
+`BootstrapMeanPercentile` is an immutable method configuration. Its canonical
+machine identity includes the fixed method name and semantics version together
+with `resamples`, `interval_level`, and `quantile_method`.
+
 ## `statfuzz.search`
 
 The search namespace is public. It contains the finite parameter-space model, search

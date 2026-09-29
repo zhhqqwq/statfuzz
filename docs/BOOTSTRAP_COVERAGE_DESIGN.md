@@ -544,3 +544,22 @@ Phase B1 implements the mean-truth contract only.
 
 Bootstrap resampling, percentile intervals, child RNG derivation, and coverage
 execution remain out of scope after Phase B1.
+
+
+## 18. Bootstrap Phase B2 implementation status
+
+Phase B2 implements the immutable percentile-bootstrap method configuration only.
+
+- `BootstrapMeanPercentile` fixes the method identity to
+  `bootstrap_mean_percentile` with semantics version `1`;
+- `resamples` must be a positive integer and is normalized to a Python `int`;
+- `interval_level` must be finite and strictly between zero and one and is
+  normalized to a Python `float`;
+- the only supported quantile method is `linear`;
+- `as_dict()`, `from_dict()`, and `canonical_json()` provide stable machine
+  identity and exact round-trip semantics;
+- unknown identity fields, unsupported method names, and unsupported semantics
+  versions fail loudly.
+
+Bootstrap sample generation, percentile interval calculation, and child RNG
+derivation remain out of scope after Phase B2.

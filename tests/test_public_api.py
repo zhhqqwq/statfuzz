@@ -1,7 +1,7 @@
 from importlib.metadata import version
 
 import statfuzz
-from statfuzz import dgp, report, search, statci
+from statfuzz import dgp, methods, report, search, statci
 
 
 def _assert_public_api(module, expected):
@@ -59,6 +59,15 @@ def test_dgp_namespace_public_api():
         "StudentT",
     }
     _assert_public_api(dgp, expected)
+
+
+def test_methods_namespace_public_api():
+    expected = {
+        "BootstrapMeanPercentile",
+        "welch_ttest_pvalue",
+        "welch_ttest_pvalues_batch",
+    }
+    _assert_public_api(methods, expected)
 
 
 def test_search_namespace_public_api():
