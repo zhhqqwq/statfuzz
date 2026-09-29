@@ -459,3 +459,28 @@ No runtime checkpoint behavior is added.
 - prove exact resumed equivalence when `batch_size` changes across the
   checkpoint boundary;
 - cover all built-in DGPs and representative sample sizes.
+
+
+## 13. Phase 3B implementation status
+
+Phase 3B now implements the model and persistence substrate defined above:
+
+- `ExperimentSpec` provides the canonical semantic experiment payload;
+- `ExecutionContract` records the strict runtime compatibility contract;
+- `ExperimentFingerprint` computes SHA-256 over canonical experiment +
+  execution JSON;
+- `RNGSnapshot` uses a lossless tagged JSON encoding for NumPy RNG state;
+- ndarray state is stored as dtype + shape + base64 raw bytes;
+- `Checkpoint` validates schema, fingerprint, state invariants, and RNG type;
+- `Checkpoint.write_atomic()` writes via same-directory temporary file,
+  `fsync`, and `os.replace`;
+- corrupt JSON, unsupported schemas, unknown fields, mismatched fingerprints,
+  impossible counts, and RNG-type mismatches fail loudly.
+
+The initial Phase 3B implementation chooses the conservative `seed=None`
+policy: persistent checkpoint model construction rejects `seed=None`.
+Supporting entropy-derived initial RNG identities is deferred to a separate
+future change.
+
+Phase 3B still does **not** make `stress_test()` resume from a checkpoint.
+Resume execution and uninterrupted-vs-resumed equivalence remain Phase 3C.
