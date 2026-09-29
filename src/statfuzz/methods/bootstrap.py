@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import dataclass
@@ -10,6 +11,11 @@ import numpy as np
 BOOTSTRAP_MEAN_PERCENTILE_METHOD = "bootstrap_mean_percentile"
 BOOTSTRAP_MEAN_PERCENTILE_SEMANTICS_VERSION = "1"
 BOOTSTRAP_MEAN_PERCENTILE_QUANTILE_METHOD = "linear"
+BOOTSTRAP_MEAN_PERCENTILE_RNG_DOMAIN = (
+    "statfuzz.bootstrap_mean_percentile.child_rng"
+)
+BOOTSTRAP_MEAN_PERCENTILE_RNG_SEMANTICS_VERSION = "1"
+_BOOTSTRAP_MEAN_PERCENTILE_RNG_PERSON = b"statfuzz-bsprng1"
 
 
 @dataclass(frozen=True)
@@ -119,6 +125,63 @@ class BootstrapMeanPercentile:
         )
 
 
+def _non_negative_integer(name: str, value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise TypeError(f"{name} must be an integer")
+    normalized = int(value)
+    if normalized < 0:
+        raise ValueError(f"{name} must be non-negative")
+    return normalized
+
+
+def bootstrap_mean_percentile_child_seed(
+    root_seed: int,
+    logical_outer_index: int,
+) -> int:
+    """Derive the stable bootstrap child seed for one logical outer replicate."""
+
+    normalized_root_seed = _non_negative_integer("root_seed", root_seed)
+    normalized_index = _non_negative_integer(
+        "logical_outer_index",
+        logical_outer_index,
+    )
+
+    payload = {
+        "domain": BOOTSTRAP_MEAN_PERCENTILE_RNG_DOMAIN,
+        "logical_outer_index": normalized_index,
+        "rng_semantics_version": (
+            BOOTSTRAP_MEAN_PERCENTILE_RNG_SEMANTICS_VERSION
+        ),
+        "root_seed": normalized_root_seed,
+    }
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    digest = hashlib.blake2b(
+        canonical,
+        digest_size=16,
+        person=_BOOTSTRAP_MEAN_PERCENTILE_RNG_PERSON,
+    ).digest()
+    return int.from_bytes(digest, byteorder="big", signed=False)
+
+
+def bootstrap_mean_percentile_child_rng(
+    root_seed: int,
+    logical_outer_index: int,
+) -> np.random.Generator:
+    """Create the explicit PCG64 child Generator for one outer replicate."""
+
+    child_seed = bootstrap_mean_percentile_child_seed(
+        root_seed,
+        logical_outer_index,
+    )
+    return np.random.Generator(np.random.PCG64(child_seed))
+
+
 def _as_finite_bootstrap_sample(sample: np.ndarray) -> np.ndarray:
     values = np.asarray(sample, dtype=float)
     if values.ndim != 1:
@@ -183,5 +246,7 @@ def bootstrap_mean_percentile_interval(
 
 __all__ = [
     "BootstrapMeanPercentile",
+    "bootstrap_mean_percentile_child_rng",
+    "bootstrap_mean_percentile_child_seed",
     "bootstrap_mean_percentile_interval",
 ]

@@ -584,3 +584,33 @@ Phase B3 implements the scalar percentile-bootstrap mean interval oracle only.
 
 Child-seed derivation, bootstrap RNG ownership, outer coverage simulation, and
 checkpoint integration remain out of scope after Phase B3.
+
+
+## 20. Bootstrap Phase B4 implementation status
+
+Phase B4 locks deterministic bootstrap child-stream derivation only.
+
+For each logical outer replicate, the child seed is derived from a canonical
+JSON payload containing the bootstrap-specific domain separator, RNG semantics
+version `1`, experiment root seed, and logical outer index. The payload is
+hashed with BLAKE2b-128 using fixed personalization `statfuzz-bsprng1`, and
+the digest is interpreted as an unsigned big-endian integer.
+
+The child Generator is explicitly:
+
+`numpy.random.Generator(numpy.random.PCG64(child_seed))`
+
+and never depends on `default_rng()`.
+
+Fixed-reference tests lock exact child seeds and initial PCG64 streams for
+selected logical indices. Additional tests prove:
+
+- the same logical index recreates the same stream;
+- different logical indices receive distinct child seeds/streams;
+- requesting child streams in a different order does not change any stream;
+- consuming one child stream cannot perturb another;
+- NumPy integral inputs normalize to the same derivation;
+- derivation does not consume or depend on NumPy's legacy global RNG state.
+
+Outer DGP sampling, coverage events, coverage aggregation, batching, progress,
+and checkpoint/resume remain out of scope after Phase B4.

@@ -74,6 +74,8 @@ The methods namespace exposes stable statistical-method contracts and reference
 operations:
 
 - `BootstrapMeanPercentile`
+- `bootstrap_mean_percentile_child_seed`
+- `bootstrap_mean_percentile_child_rng`
 - `bootstrap_mean_percentile_interval`
 - `welch_ttest_pvalue`
 - `welch_ttest_pvalues_batch`
@@ -189,3 +191,28 @@ evaluates the two percentile quantiles using the method's locked
 
 The function does not derive seeds or create child generators. RNG ownership
 and child-stream derivation are separate concerns for a later phase.
+
+
+## Bootstrap child RNG derivation
+
+`bootstrap_mean_percentile_child_seed(root_seed, logical_outer_index)`
+deterministically maps one experiment root seed and one logical outer replicate
+index to a bootstrap child seed. The mapping uses a versioned canonical JSON
+payload containing:
+
+- domain = `statfuzz.bootstrap_mean_percentile.child_rng`;
+- RNG semantics version = `1`;
+- root seed;
+- logical outer index.
+
+The payload is hashed with BLAKE2b using a 128-bit digest and fixed
+personalization `statfuzz-bsprng1`. The digest is interpreted as an unsigned
+big-endian integer.
+
+`bootstrap_mean_percentile_child_rng(...)` always constructs
+`numpy.random.Generator(numpy.random.PCG64(child_seed))`; it never calls
+`default_rng()`.
+
+This makes child-stream assignment a pure function of root seed and logical
+outer index. Request order and consumption of one child stream cannot perturb
+another child stream.
