@@ -130,14 +130,18 @@ def _markdown(result: dict[str, object]) -> str:
         "",
         f"- Scenarios: {summary['scenarios']}",
         f"- Median speedup: {float(summary['median_speedup']):.3f}x",
-        f"- P05–P95 speedup: "
-        f"{float(summary['p05_speedup']):.3f}x–"
-        f"{float(summary['p95_speedup']):.3f}x",
-        f"- Min–max speedup: "
-        f"{float(summary['min_speedup']):.3f}x–"
-        f"{float(summary['max_speedup']):.3f}x",
-        f"- Median runtime reduction: "
-        f"{100.0 * float(summary['median_runtime_reduction']):.1f}%",
+        (
+            f"- P05–P95 speedup: {float(summary['p05_speedup']):.3f}x–"
+            f"{float(summary['p95_speedup']):.3f}x"
+        ),
+        (
+            f"- Min–max speedup: {float(summary['min_speedup']):.3f}x–"
+            f"{float(summary['max_speedup']):.3f}x"
+        ),
+        (
+            "- Median runtime reduction: "
+            f"{100.0 * float(summary['median_runtime_reduction']):.1f}%"
+        ),
         "",
         "## Per-scenario results",
         "",
