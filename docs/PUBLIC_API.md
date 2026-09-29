@@ -28,6 +28,8 @@ Core:
 - `StressTestResult`
 - `MeanEqualityNull`
 - `MeanNullCheck`
+- `MeanTarget`
+- `MeanTargetCheck`
 
 Common StatCI workflow:
 
@@ -147,3 +149,15 @@ Custom DGPs may also expose `population_mean`. If they cannot, callers must pass
 `MeanEqualityNull(mean=..., note=...)` to make the unverified analytical
 assumption explicit. The resulting `MeanNullCheck` is stored in
 `StressTestResult`, StatCI evidence, and reports.
+
+
+## Mean-target truth contract
+
+Mean-coverage experiments use a truth contract that is separate from the
+Type-I null contract.
+
+Built-in DGPs expose a finite `population_mean`, which can be verified
+automatically. Custom DGPs that do not expose a population mean must be paired
+with an explicit `MeanTarget(mean=..., note=...)`. The resolved
+`MeanTargetCheck` records whether the truth came from a verified DGP
+population mean or from an explicit caller declaration.
