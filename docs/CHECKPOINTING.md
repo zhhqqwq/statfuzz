@@ -484,3 +484,38 @@ future change.
 
 Phase 3B still does **not** make `stress_test()` resume from a checkpoint.
 Resume execution and uninterrupted-vs-resumed equivalence remain Phase 3C.
+
+
+## 14. Phase 3C implementation status
+
+Phase 3C adds the minimal internal resume execution path while deliberately
+keeping resume out of the top-level public API.
+
+The resumable executor now accepts committed state:
+
+- `start_index`, representing the number of completed logical replicates;
+- `initial_rejections`, representing the cumulative committed rejection count;
+- an exact restored NumPy `Generator`.
+
+The internal resume path:
+
+1. rebinds the checkpoint experiment to the concrete runtime DGPs;
+2. rejects semantic/fingerprint mismatches before any new sample draw;
+3. restores the exact supported BitGenerator state from the checkpoint;
+4. validates the current execution contract against the checkpoint;
+5. resumes logical simulation indices at `completed`;
+6. carries forward the committed rejection count;
+7. finalizes the result through the same evidence/result construction path as
+   an uninterrupted `stress_test()`.
+
+Fixed-`batch_size` tests prove exact equality between uninterrupted and
+resumed runs for all built-in DGP families, including:
+
+- complete `StressTestResult` equality;
+- rejection-count equality;
+- complete logical sample-sequence equality;
+- final NumPy RNG-state equality;
+- global progress counts after resume.
+
+Phase 3C does **not** claim or test changing `batch_size` across the checkpoint
+boundary. That remains Phase 4.

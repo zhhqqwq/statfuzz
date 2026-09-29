@@ -6,12 +6,17 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .dgp import DataGenerator
+from .checkpoint import (
+    Checkpoint,
+    CheckpointFingerprintError,
+    ExecutionContract,
+)
+from .dgp import DGPIdentity, DataGenerator
 from .dgp.base import get_dgp_identity
 from .methods import welch_ttest_pvalue, welch_ttest_pvalues_batch
 from .methods.welch import WelchBatchError
 from .metrics import type1_error_evidence
-from .nulls import MeanEqualityNull, verify_mean_equality_null
+from .nulls import MeanEqualityNull, MeanNullCheck, verify_mean_equality_null
 from .result import StressTestResult
 
 DEFAULT_BATCH_SIZE = 64
@@ -103,11 +108,18 @@ def _simulate_rejections(
     rng: np.random.Generator,
     batch_size: int,
     progress_callback: Callable[[SimulationProgress], object] | None = None,
+    start_index: int = 0,
+    initial_rejections: int = 0,
 ) -> int:
     """Run logical replicates without letting batch boundaries alter RNG use."""
 
-    rejections = 0
-    for batch_start in range(0, simulations, batch_size):
+    if not 0 <= start_index <= simulations:
+        raise ValueError("start_index must be between 0 and simulations")
+    if not 0 <= initial_rejections <= start_index:
+        raise ValueError("initial_rejections must be between 0 and start_index")
+
+    rejections = initial_rejections
+    for batch_start in range(start_index, simulations, batch_size):
         batch_stop = min(batch_start + batch_size, simulations)
         xs: list[np.ndarray] = []
         ys: list[np.ndarray] = []
@@ -150,6 +162,131 @@ def _simulate_rejections(
             )
 
     return rejections
+
+
+def _build_stress_result(
+    *,
+    method: str,
+    metric: str,
+    dgp: DataGenerator,
+    other: DataGenerator,
+    n1: int,
+    n2: int,
+    simulations: int,
+    seed: int | None,
+    alpha: float,
+    tolerance: float,
+    dgp1_identity: DGPIdentity,
+    dgp2_identity: DGPIdentity,
+    null_check: MeanNullCheck,
+    rejection_count: int,
+    confidence_level: float,
+    interval_method: str,
+) -> StressTestResult:
+    evidence = type1_error_evidence(
+        rejection_count,
+        simulations,
+        alpha,
+        confidence_level=confidence_level,
+        interval_method=interval_method,
+    )
+
+    return StressTestResult(
+        method=method,
+        metric=metric,
+        dgp1=dgp.name,
+        dgp2=other.name,
+        n1=n1,
+        n2=n2,
+        simulations=simulations,
+        seed=seed,
+        nominal=alpha,
+        empirical=evidence.empirical,
+        mcse=evidence.mcse,
+        tolerance=tolerance,
+        dgp1_identity=dgp1_identity,
+        dgp2_identity=dgp2_identity,
+        null_check=null_check,
+        rejection_count=evidence.rejection_count,
+        confidence_level=evidence.confidence_level,
+        interval_method=evidence.interval_method,
+        interval_low=evidence.interval_low,
+        interval_high=evidence.interval_high,
+    )
+
+
+def _validate_execution_controls(
+    *,
+    batch_size: int,
+    progress_callback: Callable[[SimulationProgress], object] | None,
+) -> None:
+    _validate_execution_controls(
+        batch_size=batch_size,
+        progress_callback=progress_callback,
+    )
+
+
+def _resume_stress_test(
+    *,
+    checkpoint: Checkpoint,
+    dgp: DataGenerator,
+    dgp2: DataGenerator | None = None,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    progress_callback: Callable[[SimulationProgress], object] | None = None,
+) -> tuple[StressTestResult, np.random.Generator]:
+    """Resume a validated checkpoint without changing its statistical experiment."""
+
+    if not isinstance(checkpoint, Checkpoint):
+        raise TypeError("checkpoint must be a Checkpoint")
+    _validate_execution_controls(
+        batch_size=batch_size,
+        progress_callback=progress_callback,
+    )
+
+    experiment = checkpoint.experiment.bind_dgps(dgp=dgp, dgp2=dgp2)
+    if experiment != checkpoint.experiment:
+        raise CheckpointFingerprintError(
+            "checkpoint does not match the requested experiment"
+        )
+
+    other = dgp if dgp2 is None else dgp2
+    rng = checkpoint.state.rng.restore_generator()
+    execution = ExecutionContract.from_generator(rng)
+    checkpoint.validate_for(experiment, execution)
+
+    rejections = _simulate_rejections(
+        dgp=dgp,
+        other=other,
+        n1=experiment.n1,
+        n2=experiment.n2,
+        simulations=experiment.simulations,
+        alpha=experiment.alpha,
+        rng=rng,
+        batch_size=batch_size,
+        progress_callback=progress_callback,
+        start_index=checkpoint.state.completed,
+        initial_rejections=checkpoint.state.rejections,
+    )
+
+    result = _build_stress_result(
+        method=experiment.method,
+        metric=experiment.metric,
+        dgp=dgp,
+        other=other,
+        n1=experiment.n1,
+        n2=experiment.n2,
+        simulations=experiment.simulations,
+        seed=experiment.root_seed,
+        alpha=experiment.alpha,
+        tolerance=experiment.tolerance,
+        dgp1_identity=experiment.dgp1_identity,
+        dgp2_identity=experiment.dgp2_identity,
+        null_check=experiment.null_check,
+        rejection_count=rejections,
+        confidence_level=experiment.confidence_level,
+        interval_method=experiment.interval_method,
+    )
+    return result, rng
 
 
 def stress_test(
@@ -232,33 +369,21 @@ def stress_test(
         progress_callback=progress_callback,
     )
 
-    evidence = type1_error_evidence(
-        rejections,
-        simulations,
-        alpha,
-        confidence_level=confidence_level,
-        interval_method=interval_method,
-    )
-
-    return StressTestResult(
+    return _build_stress_result(
         method=method,
         metric=metric,
-        dgp1=dgp.name,
-        dgp2=other.name,
+        dgp=dgp,
+        other=other,
         n1=n1,
         n2=n2,
         simulations=simulations,
         seed=seed,
-        nominal=alpha,
-        empirical=evidence.empirical,
-        mcse=evidence.mcse,
+        alpha=alpha,
         tolerance=tolerance,
         dgp1_identity=dgp1_identity,
         dgp2_identity=dgp2_identity,
         null_check=null_check,
-        rejection_count=evidence.rejection_count,
-        confidence_level=evidence.confidence_level,
-        interval_method=evidence.interval_method,
-        interval_low=evidence.interval_low,
-        interval_high=evidence.interval_high,
+        rejection_count=rejections,
+        confidence_level=confidence_level,
+        interval_method=interval_method,
     )
