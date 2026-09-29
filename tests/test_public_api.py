@@ -19,6 +19,7 @@ def test_top_level_public_api_is_intentionally_small():
         "MeanEqualityNull",
         "MeanNullCheck",
         "RegressionPolicy",
+        "SimulationProgress",
         "StatCIRegressionError",
         "StatCIResult",
         "StatCIStatusArtifact",
