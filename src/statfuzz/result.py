@@ -2,9 +2,36 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 from .dgp.base import DGPIdentity
 from .nulls import MeanNullCheck
+
+
+@runtime_checkable
+class StatisticalPropertyResult(Protocol):
+    """Minimal result contract shared by search and statistical properties."""
+
+    method: str
+    metric: str
+    simulations: int
+    seed: int | None
+    nominal: float
+    empirical: float
+    mcse: float
+    tolerance: float
+
+    @property
+    def deviation(self) -> float:
+        ...
+
+    @property
+    def passed(self) -> bool:
+        ...
+
+    @property
+    def status(self) -> str:
+        ...
 
 
 @dataclass(frozen=True)
