@@ -94,8 +94,17 @@ JSON schema version `1.1` contains:
 - microseconds per replicate;
 - diagnostic component/end-to-end ratios.
 
-The GitHub Actions workflow uploads both files as artifacts and writes the Markdown table
-to the job summary.
+The GitHub Actions workflow now runs two full matrices on the **same runner**:
+
+- scalar reference: `batch_size=1`;
+- Phase 1 candidate: `batch_size=64`.
+
+It then uses `benchmarks/compare_performance.py` to pair all 36 matching scenarios and
+produce a same-run speedup comparison. This avoids attributing runner-to-runner CPU
+differences to batching.
+
+The workflow uploads the scalar, batched, and comparison JSON/Markdown files as
+artifacts, and writes the paired comparison plus batched table to the job summary.
 
 ## Running a small local check
 
@@ -128,7 +137,10 @@ replicate. The default execution batch size is 64; `batch_size=1` uses the origi
 scalar Welch reference path.
 
 The benchmark CLI records the end-to-end execution batch size and accepts
-`--batch-size 1` for direct scalar-reference measurements.
+`--batch-size 1` for direct scalar-reference measurements. The canonical Actions
+workflow runs `batch_size=1` and `batch_size=64` sequentially on the same hosted
+runner before computing speedup, so the Phase 1 performance claim does not depend on
+cross-runner comparisons.
 
 ## Batching reproducibility contract
 
@@ -162,6 +174,21 @@ replicate.
 This invariant is stronger than merely obtaining a similar empirical rejection rate:
 for a fixed seed and experiment, the logical sequence of replicate outcomes must remain
 identical across supported batch sizes.
+
+### Reproducibility regression matrix
+
+The Phase 1 CI suite treats `batch_size=1` as the scalar reference and compares it
+against `batch_size=2`, `7`, `64`, and a value larger than the simulation budget.
+
+The regression suite covers all four built-in DGPs at representative sample sizes
+`n=10` and `n=37`, and requires the complete `StressTestResult` to compare equal.
+A recording custom DGP separately verifies the exact logical sample-draw sequence.
+An internal executor test uses asymmetric `n1=13` / `n2=17` and requires the final
+NumPy bit-generator state and rejection count to match the scalar reference exactly.
+
+The batched Welch helper is also checked against the scalar oracle for rejection
+decisions and zero-variance overrides. These tests intentionally verify execution
+semantics rather than accepting approximate Monte Carlo agreement.
 
 ## Next design step
 
