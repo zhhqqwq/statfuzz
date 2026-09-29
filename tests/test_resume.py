@@ -8,7 +8,13 @@ from statfuzz.checkpoint import (
     ExperimentSpec,
     RNGSnapshot,
 )
-from statfuzz.dgp import DGPIdentity, LogNormal, MixtureNormal, Normal, StudentT
+from statfuzz.dgp import (
+    DGPIdentity,
+    LogNormal,
+    MixtureNormal,
+    Normal,
+    StudentT,
+)
 
 
 SEED = 20260930
