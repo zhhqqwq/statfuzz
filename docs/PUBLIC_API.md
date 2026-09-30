@@ -492,3 +492,31 @@ PASS-to-FAIL transitions are recorded but do not bypass the uncertainty guard.
 
 `compare_suites(...)` remains unavailable for Bootstrap coverage in this
 phase; suite matching and regression-summary integration remain deferred.
+
+
+## Bootstrap StatCI suite matching
+
+StatCI Phase 2C enables `compare_suites(...)` for suites containing Type-I
+checks, Bootstrap coverage checks, or both.
+
+Suite indexing now uses the same evidence-aware comparison-key dispatch as
+single-result comparison:
+
+- Type-I / legacy results use `StatCIComparisonKey`;
+- Bootstrap coverage uses `BootstrapCoverageComparisonKey`.
+
+Duplicate detection therefore applies within either key family using the full
+stable check identity.
+
+Suite matching retains the existing `RegressionPolicy.strict_matching`
+semantics. In strict mode, missing baseline checks and unexpected current
+checks raise before comparison. In non-strict mode, the matched intersection is
+compared and unmatched keys are retained in `missing_current` and
+`new_current`.
+
+Mixed key families use a deterministic internal sort order so comparison output
+does not depend on the input order of either suite. Existing pure Type-I
+ordering is preserved, followed by Bootstrap coverage keys ordered by their
+Phase 2A identity.
+
+Regression-summary rendering is not changed in Phase 2C.

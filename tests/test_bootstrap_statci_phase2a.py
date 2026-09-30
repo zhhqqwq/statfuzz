@@ -251,18 +251,28 @@ def test_phase2b_compare_results_reuses_phase2a_identity():
     )
 
 
-def test_phase2a_does_not_enable_bootstrap_compare_suites():
+def test_phase2c_compare_suites_reuses_phase2a_identity():
+    baseline_result = _coverage_check(seed=ROOT_SEED)
+    current_result = _coverage_check(seed=ROOT_SEED + 1)
     baseline = StatCISuiteResult.from_results(
-        [_coverage_check(seed=ROOT_SEED)],
+        [baseline_result],
         name="baseline",
     )
     current = StatCISuiteResult.from_results(
-        [_coverage_check(seed=ROOT_SEED + 1)],
+        [current_result],
         name="current",
     )
 
-    with pytest.raises(TypeError, match="suite matching"):
-        compare_suites(baseline, current)
+    comparison = compare_suites(baseline, current)
+
+    assert comparison.total == 1
+    assert isinstance(
+        comparison.comparisons[0].key,
+        BootstrapCoverageComparisonKey,
+    )
+    assert comparison.comparisons[0].key == (
+        BootstrapCoverageComparisonKey.from_result(baseline_result)
+    )
 
 
 def test_baseline_json_payload_remains_deterministic_after_round_trip():

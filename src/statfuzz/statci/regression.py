@@ -464,14 +464,47 @@ def compare_results(
     )
 
 
+def _regression_key_sort_key(
+    key: StatCIRegressionKey,
+) -> tuple[object, ...]:
+    if isinstance(key, StatCIComparisonKey):
+        return (
+            0,
+            key.property,
+            key.target,
+            key.tolerance,
+            key.method,
+            key.metric,
+            key.dgp1_identity,
+            key.dgp2_identity,
+            key.null_identity,
+            key.n1,
+            key.n2,
+        )
+    if isinstance(key, BootstrapCoverageComparisonKey):
+        return (
+            1,
+            key.property,
+            key.target,
+            key.tolerance,
+            key.method,
+            key.metric,
+            key.dgp_identity,
+            key.target_identity,
+            key.bootstrap_method_identity,
+            key.n,
+        )
+    raise TypeError("unsupported StatCI regression comparison key")
+
+
 def _index_suite(
     suite: StatCISuiteResult,
     *,
     role: str,
-) -> dict[StatCIComparisonKey, StatCIResult]:
-    index: dict[StatCIComparisonKey, StatCIResult] = {}
+) -> dict[StatCIRegressionKey, StatCIResult]:
+    index: dict[StatCIRegressionKey, StatCIResult] = {}
     for result in suite.results:
-        key = StatCIComparisonKey.from_result(result)
+        key = _comparison_key_for_result(result)
         if key in index:
             raise ValueError(
                 f"{role} suite contains duplicate comparison key: {key.describe()}"
@@ -489,8 +522,8 @@ class StatCIRegressionSuiteResult:
     current_name: str
     policy: RegressionPolicy
     comparisons: tuple[StatCIRegressionResult, ...]
-    missing_current: tuple[StatCIComparisonKey, ...] = ()
-    new_current: tuple[StatCIComparisonKey, ...] = ()
+    missing_current: tuple[StatCIRegressionKey, ...] = ()
+    new_current: tuple[StatCIRegressionKey, ...] = ()
     schema_version: str = STATCI_REGRESSION_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -590,8 +623,18 @@ def compare_suites(
 
     baseline_keys = set(baseline_index)
     current_keys = set(current_index)
-    missing_current = tuple(sorted(baseline_keys - current_keys))
-    new_current = tuple(sorted(current_keys - baseline_keys))
+    missing_current = tuple(
+        sorted(
+            baseline_keys - current_keys,
+            key=_regression_key_sort_key,
+        )
+    )
+    new_current = tuple(
+        sorted(
+            current_keys - baseline_keys,
+            key=_regression_key_sort_key,
+        )
+    )
 
     if resolved_policy.strict_matching and (missing_current or new_current):
         pieces = []
@@ -607,7 +650,12 @@ def compare_suites(
             )
         raise ValueError("suite comparison key mismatch; " + " | ".join(pieces))
 
-    matched_keys = tuple(sorted(baseline_keys & current_keys))
+    matched_keys = tuple(
+        sorted(
+            baseline_keys & current_keys,
+            key=_regression_key_sort_key,
+        )
+    )
     if not matched_keys:
         raise ValueError("baseline and current suites have no matching checks")
 
