@@ -115,13 +115,14 @@ def _run_internal_trace(monkeypatch, base, *, batch_size=None):
             original_event,
         )
 
+    final_state = rng.bit_generator.state
     next_stream = rng.integers(
         0,
         2**31,
         size=20,
         dtype=np.int64,
     )
-    return dgp.samples, events, coverage_count, rng.bit_generator.state, next_stream
+    return dgp.samples, events, coverage_count, final_state, next_stream
 
 
 @pytest.mark.parametrize("factory", _dgp_factories())
