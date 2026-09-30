@@ -239,12 +239,16 @@ def test_bootstrap_comparison_key_strictly_rejects_unknown_fields():
         BootstrapCoverageComparisonKey.from_dict(key)
 
 
-def test_phase2a_does_not_enable_bootstrap_compare_results():
+def test_phase2b_compare_results_reuses_phase2a_identity():
     baseline = _coverage_check(seed=ROOT_SEED)
     current = _coverage_check(seed=ROOT_SEED + 1)
 
-    with pytest.raises(TypeError, match="Phase 2B"):
-        compare_results(baseline, current)
+    comparison = compare_results(baseline, current)
+
+    assert isinstance(comparison.key, BootstrapCoverageComparisonKey)
+    assert comparison.key == BootstrapCoverageComparisonKey.from_result(
+        baseline
+    )
 
 
 def test_phase2a_does_not_enable_bootstrap_compare_suites():
@@ -257,7 +261,7 @@ def test_phase2a_does_not_enable_bootstrap_compare_suites():
         name="current",
     )
 
-    with pytest.raises(TypeError, match="Phase 2B"):
+    with pytest.raises(TypeError, match="suite matching"):
         compare_suites(baseline, current)
 
 
