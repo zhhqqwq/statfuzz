@@ -10,7 +10,7 @@ from statfuzz.bootstrap_coverage import (
 )
 from statfuzz.dgp import DGPIdentity
 from statfuzz.methods import BootstrapMeanPercentile
-from statfuzz.metrics import binomial_rate_evidence
+from statfuzz.metrics import BinomialRateEvidence, binomial_rate_evidence
 from statfuzz.result import StatisticalPropertyResult
 from statfuzz.targets import MeanTargetCheck
 
@@ -233,6 +233,30 @@ def test_bootstrap_coverage_result_rejects_evidence_trial_mismatch():
             method_config=BootstrapMeanPercentile(),
             target_check=_target(0.0),
             evidence=binomial_rate_evidence(95, 101),
+            tolerance=0.01,
+        )
+
+
+def test_bootstrap_coverage_result_rejects_internally_inconsistent_evidence():
+    with pytest.raises(ValueError, match="inconsistent"):
+        BootstrapCoverageResult(
+            dgp="coverage-dgp",
+            dgp_identity=_identity(),
+            n=20,
+            simulations=100,
+            seed=ROOT_SEED,
+            method_config=BootstrapMeanPercentile(),
+            target_check=_target(0.0),
+            evidence=BinomialRateEvidence(
+                event_count=95,
+                trials=100,
+                empirical=0.5,
+                mcse=0.01,
+                confidence_level=0.95,
+                interval_method="wilson",
+                interval_low=0.4,
+                interval_high=0.6,
+            ),
             tolerance=0.01,
         )
 
