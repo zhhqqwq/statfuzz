@@ -105,7 +105,7 @@ def validate_candidate(
     if validation_result.seed != validation_seed:
         raise ValueError(
             "the validation evaluator must pass the provided seed through to "
-            "stress_test so validation is reproducible"
+            "the statistical evaluation so validation is reproducible"
         )
 
     return CandidateValidationResult(
