@@ -356,11 +356,22 @@ def _uncertainty_scale(
     return math.sqrt(baseline.mcse**2 + current.mcse**2)
 
 
+StatCIRegressionKey = StatCIComparisonKey | BootstrapCoverageComparisonKey
+
+
+def _comparison_key_for_result(
+    result: StatCIResult,
+) -> StatCIRegressionKey:
+    if result.evidence_kind == "bootstrap_coverage":
+        return BootstrapCoverageComparisonKey.from_result(result)
+    return StatCIComparisonKey.from_result(result)
+
+
 @dataclass(frozen=True)
 class StatCIRegressionResult:
     """Uncertainty-aware comparison for one matched StatCI check."""
 
-    key: StatCIComparisonKey
+    key: StatCIRegressionKey
     baseline: StatCIResult
     current: StatCIResult
     uncertainty_scale: float
@@ -413,8 +424,8 @@ def compare_results(
     if not isinstance(resolved_policy, RegressionPolicy):
         raise TypeError("policy must be a RegressionPolicy")
 
-    baseline_key = StatCIComparisonKey.from_result(baseline)
-    current_key = StatCIComparisonKey.from_result(current)
+    baseline_key = _comparison_key_for_result(baseline)
+    current_key = _comparison_key_for_result(current)
     if baseline_key != current_key:
         raise ValueError(
             "baseline and current checks do not have the same comparison key"
