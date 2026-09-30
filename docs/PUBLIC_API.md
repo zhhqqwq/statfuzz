@@ -416,3 +416,45 @@ format.
 
 Bootstrap baseline loading and regression comparison are intentionally deferred
 to a later StatCI phase.
+
+
+## Bootstrap StatCI regression identity and baseline loading
+
+StatCI Phase 2A defines a stable Bootstrap coverage comparison identity without
+enabling regression judgments.
+
+`BootstrapCoverageComparisonKey` is available from `statfuzz.statci`.
+Its identity includes:
+
+- property name, assertion target, and assertion tolerance;
+- method and metric;
+- stable `DGPIdentity`;
+- complete resolved `MeanTargetCheck`;
+- complete `BootstrapMeanPercentile` machine identity;
+- sample size `n`.
+
+The comparison identity deliberately excludes Monte Carlo realization controls
+and evidence budget:
+
+- seed;
+- simulations;
+- observed coverage;
+- MCSE;
+- coverage count;
+- Monte Carlo evidence confidence level and interval bounds.
+
+This allows independent or higher-budget baseline/current runs to represent the
+same statistical assertion.
+
+Bootstrap coverage `StatCIResult` JSON can now be strictly reconstructed by
+`StatCIResult.from_dict(...)`; `StatCISuiteResult.from_json(...)` therefore
+also supports persisted Bootstrap coverage baselines. The coverage loader
+strictly validates the evidence shape, DGP identity, target check, bootstrap
+method identity, coverage count, evidence interval, and assertion invariants.
+
+Existing Type-I baseline loading remains unchanged and
+`STATCI_SCHEMA_VERSION` remains `1.2`.
+
+Phase 2A explicitly does not enable `compare_results(...)` or
+`compare_suites(...)` for Bootstrap coverage. Those calls reject coverage
+results until Phase 2B defines the regression/worsening semantics.

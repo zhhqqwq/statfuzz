@@ -7,11 +7,24 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from .model import StatCIResult
+from ..dgp.base import DGPIdentity
+from ..methods.bootstrap import BootstrapMeanPercentile
+from ..targets import MeanTargetCheck
+from .model import StatCIResult, _BootstrapCoverageStatCIResult
 from .suite import StatCISuiteResult
 
 STATCI_REGRESSION_SCHEMA_VERSION = "1.2"
 UncertaintyMode = Literal["conservative", "independent"]
+
+
+def _canonical_json(data: object) -> str:
+    return json.dumps(
+        data,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
 
 
 def _dgp_identity_key(display_name: str, identity: object) -> str:
@@ -59,6 +72,12 @@ class StatCIComparisonKey:
     def from_result(cls, result: StatCIResult) -> StatCIComparisonKey:
         if not isinstance(result, StatCIResult):
             raise TypeError("result must be a StatCIResult")
+        if result.evidence_kind == "bootstrap_coverage":
+            raise TypeError(
+                "Bootstrap coverage regression comparison is not enabled "
+                "until StatCI Phase 2B; use BootstrapCoverageComparisonKey "
+                "for identity only"
+            )
         return cls(
             property=result.property,
             target=result.target,
@@ -102,6 +121,187 @@ class StatCIComparisonKey:
             f"{self.dgp1_display} vs {self.dgp2_display} | "
             f"n={self.n1}/{self.n2} | "
             f"target={self.target:g} ± {self.tolerance:g}"
+        )
+
+
+@dataclass(frozen=True, order=True)
+class BootstrapCoverageComparisonKey:
+    """Stable identity for one Bootstrap coverage StatCI check."""
+
+    property: str
+    target: float
+    tolerance: float
+    method: str
+    metric: str
+    dgp_identity: str
+    target_identity: str
+    bootstrap_method_identity: str
+    n: int
+    dgp_display: str = field(compare=False)
+
+    @classmethod
+    def from_result(
+        cls,
+        result: StatCIResult,
+    ) -> BootstrapCoverageComparisonKey:
+        if not isinstance(result, _BootstrapCoverageStatCIResult):
+            raise TypeError(
+                "result must be a Bootstrap coverage StatCI result"
+            )
+        if result.dgp_identity is None:
+            raise ValueError("Bootstrap coverage result requires dgp_identity")
+        if result.target_check is None:
+            raise ValueError("Bootstrap coverage result requires target_check")
+        if result.bootstrap_method is None:
+            raise ValueError(
+                "Bootstrap coverage result requires bootstrap_method"
+            )
+        if result.n is None:
+            raise ValueError("Bootstrap coverage result requires n")
+
+        return cls(
+            property=result.property,
+            target=result.target,
+            tolerance=result.tolerance,
+            method=result.method,
+            metric=result.metric,
+            dgp_identity=result.dgp_identity.canonical_json(),
+            target_identity=_canonical_json(result.target_check.as_dict()),
+            bootstrap_method_identity=result.bootstrap_method.canonical_json(),
+            n=result.n,
+            dgp_display=result.dgp,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "kind": "bootstrap_coverage",
+            "property": self.property,
+            "target": self.target,
+            "tolerance": self.tolerance,
+            "method": self.method,
+            "metric": self.metric,
+            "dgp": self.dgp_display,
+            "dgp_identity": json.loads(self.dgp_identity),
+            "target_check": json.loads(self.target_identity),
+            "bootstrap_method": json.loads(self.bootstrap_method_identity),
+            "n": self.n,
+        }
+
+    def canonical_json(self) -> str:
+        return _canonical_json(self.as_dict())
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict[str, object],
+    ) -> BootstrapCoverageComparisonKey:
+        if not isinstance(data, dict):
+            raise TypeError(
+                "Bootstrap coverage comparison key must be an object"
+            )
+        expected = {
+            "kind",
+            "property",
+            "target",
+            "tolerance",
+            "method",
+            "metric",
+            "dgp",
+            "dgp_identity",
+            "target_check",
+            "bootstrap_method",
+            "n",
+        }
+        actual = set(data)
+        if actual != expected:
+            missing = sorted(expected - actual)
+            extra = sorted(actual - expected)
+            details = []
+            if missing:
+                details.append(f"missing={missing!r}")
+            if extra:
+                details.append(f"extra={extra!r}")
+            raise ValueError(
+                "Bootstrap coverage comparison key has unexpected keys "
+                f"({', '.join(details)})"
+            )
+        if data["kind"] != "bootstrap_coverage":
+            raise ValueError(
+                "unsupported Bootstrap coverage comparison key kind"
+            )
+
+        property_name = data["property"]
+        method = data["method"]
+        metric = data["metric"]
+        dgp_display = data["dgp"]
+        for name, value in (
+            ("property", property_name),
+            ("method", method),
+            ("metric", metric),
+            ("dgp", dgp_display),
+        ):
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{name} must be a non-empty string")
+        if property_name != metric:
+            raise ValueError("property must match metric")
+        if metric != "coverage":
+            raise ValueError("Bootstrap coverage key metric must be 'coverage'")
+
+        target = data["target"]
+        tolerance = data["tolerance"]
+        if isinstance(target, bool) or not isinstance(target, (int, float)):
+            raise TypeError("target must be a real number")
+        if isinstance(tolerance, bool) or not isinstance(
+            tolerance,
+            (int, float),
+        ):
+            raise TypeError("tolerance must be a real number")
+        target = float(target)
+        tolerance = float(tolerance)
+        if not math.isfinite(target):
+            raise ValueError("target must be finite")
+        if not math.isfinite(tolerance) or tolerance < 0:
+            raise ValueError("tolerance must be finite and non-negative")
+
+        n = data["n"]
+        if not isinstance(n, int) or isinstance(n, bool) or n <= 0:
+            raise ValueError("n must be a positive integer")
+
+        raw_dgp = data["dgp_identity"]
+        raw_target = data["target_check"]
+        raw_method = data["bootstrap_method"]
+        if not isinstance(raw_dgp, dict):
+            raise TypeError("dgp_identity must be an object")
+        if not isinstance(raw_target, dict):
+            raise TypeError("target_check must be an object")
+        if not isinstance(raw_method, dict):
+            raise TypeError("bootstrap_method must be an object")
+
+        dgp_identity = DGPIdentity.from_dict(raw_dgp)
+        target_check = MeanTargetCheck.from_dict(raw_target)
+        bootstrap_method = BootstrapMeanPercentile.from_dict(raw_method)
+        if method != bootstrap_method.method:
+            raise ValueError(
+                "method must match bootstrap_method.method"
+            )
+
+        return cls(
+            property=property_name,
+            target=target,
+            tolerance=tolerance,
+            method=method,
+            metric=metric,
+            dgp_identity=dgp_identity.canonical_json(),
+            target_identity=_canonical_json(target_check.as_dict()),
+            bootstrap_method_identity=bootstrap_method.canonical_json(),
+            n=n,
+            dgp_display=dgp_display,
+        )
+
+    def describe(self) -> str:
+        return (
+            f"{self.property} | {self.method} | {self.dgp_display} | "
+            f"n={self.n} | target={self.target:g} ± {self.tolerance:g}"
         )
 
 

@@ -6,6 +6,7 @@ from .github import render_github_summary, write_github_summary
 from .model import STATCI_SCHEMA_VERSION, StatCIResult, StatisticalAssertion
 from .regression import (
     STATCI_REGRESSION_SCHEMA_VERSION,
+    BootstrapCoverageComparisonKey,
     RegressionPolicy,
     StatCIComparisonKey,
     StatCIRegressionError,
@@ -23,6 +24,7 @@ __all__ = [
     "STATCI_REGRESSION_SCHEMA_VERSION",
     "STATCI_SCHEMA_VERSION",
     "STATCI_STATUS_SCHEMA_VERSION",
+    "BootstrapCoverageComparisonKey",
     "RegressionPolicy",
     "StatCIComparisonKey",
     "StatCIRegressionError",

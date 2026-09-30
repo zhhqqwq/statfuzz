@@ -144,6 +144,7 @@ def test_statci_namespace_exposes_full_advanced_api():
         "STATCI_REGRESSION_SCHEMA_VERSION",
         "STATCI_SCHEMA_VERSION",
         "STATCI_STATUS_SCHEMA_VERSION",
+        "BootstrapCoverageComparisonKey",
         "RegressionPolicy",
         "StatCIComparisonKey",
         "StatCIRegressionError",
