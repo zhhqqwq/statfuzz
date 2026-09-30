@@ -721,3 +721,40 @@ Invalid batch sizes fail before the first outer draw.
 
 Progress callbacks, checkpoint/resume, reporting, search integration, and
 bootstrap vectorization remain out of scope after Phase C3.
+
+
+## 24. Bootstrap Phase D1 implementation status
+
+Phase D1 adds progress observation only; checkpoint/resume remains out of scope.
+
+`BootstrapCoverageProgress(completed, total, covered, empirical)` is a frozen
+cumulative snapshot. It validates that:
+
+- `completed` and `total` are positive and `completed <= total`;
+- `covered` is a non-negative integer not exceeding `completed`;
+- `empirical` is finite and exactly equals `covered / completed`.
+
+The batched coverage executor accepts an optional progress callback. The commit
+order is:
+
+1. generate the complete outer batch;
+2. evaluate every coverage event in that batch;
+3. add the batch's coverage events to cumulative `covered`;
+4. emit one progress snapshot for the committed batch.
+
+There is no progress event at zero, and a failed batch emits no progress
+snapshot. Callback return values are ignored; callback exceptions propagate
+immediately after the committed batch snapshot is delivered.
+
+Exact invariance tests cover all four built-in DGPs and
+`batch_size=1/2/7/64/>simulations`. With and without a callback, they require
+exact equality of:
+
+- public `BootstrapCoverageResult`;
+- complete outer sample sequence;
+- complete `BootstrapCoverageEvent` sequence;
+- cumulative coverage count;
+- final outer BitGenerator state and following RNG stream.
+
+Checkpointing, resume, reporting, search integration, and bootstrap
+vectorization remain out of scope after Phase D1.
