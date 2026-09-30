@@ -353,3 +353,33 @@ next LogNormal candidate remains outside tolerance and is accepted. This makes
 LogNormal the simplest still-failing family in the explicit canonical plan.
 
 Report and StatCI behavior remain unchanged.
+
+
+## Bootstrap coverage reports
+
+`build_report(...)` now freezes report results through an internal
+property-generic snapshot layer. Existing Type-I results continue to serialize
+through the unchanged `StressTestSnapshot` shape, while
+`BootstrapCoverageResult` uses a dedicated coverage snapshot.
+
+For Bootstrap coverage, report result objects include:
+
+- method and metric;
+- DGP display name and structured identity;
+- resolved `MeanTargetCheck`;
+- coverage count;
+- bootstrap method machine identity;
+- Monte Carlo evidence interval;
+- `n`, simulations, seed, nominal coverage, empirical coverage, MCSE,
+  tolerance, deviation, and status.
+
+The same snapshot path is used by search records, independent validation,
+parameter shrinking, family shrinking, and failure maps.
+
+HTML rendering keeps the existing Type-I table/summary vocabulary unchanged.
+Coverage reports use coverage-specific labels such as `Covered`,
+`MC evidence interval`, and `Mean target`.
+
+`REPORT_SCHEMA_VERSION` remains `1.3`; existing Type-I JSON result objects
+retain their prior field names and shape. StatCI is not changed by this report
+integration.
