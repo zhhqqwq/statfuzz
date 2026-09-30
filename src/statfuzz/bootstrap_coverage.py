@@ -7,6 +7,11 @@ from numbers import Integral, Real
 
 import numpy as np
 
+from .bootstrap_checkpoint import (
+    BootstrapCoverageCheckpoint,
+    BootstrapCoverageExperimentSpec,
+)
+from .checkpoint import ExecutionContract
 from .dgp.base import DataGenerator, DGPIdentity, get_dgp_identity
 from .methods.bootstrap import (
     BootstrapMeanPercentile,
@@ -244,7 +249,7 @@ def _simulate_bootstrap_coverage_scalar(
     return coverage_count
 
 
-def _simulate_bootstrap_coverage_batched(
+def _simulate_bootstrap_coverage_range(
     *,
     dgp: DataGenerator,
     n: int,
@@ -254,19 +259,41 @@ def _simulate_bootstrap_coverage_batched(
     root_seed: int,
     rng: np.random.Generator,
     batch_size: int,
+    start: int,
+    stop: int,
+    initial_covered: int,
     progress_callback: Callable[[BootstrapCoverageProgress], object] | None = None,
 ) -> int:
-    """Run outer coverage batches without changing logical RNG semantics."""
+    """Run a committed logical range without changing RNG assignment."""
 
     if not isinstance(rng, np.random.Generator):
         raise TypeError("rng must be a numpy.random.Generator")
     normalized_batch_size = _positive_integer("batch_size", batch_size)
+    normalized_start = _non_negative_integer("start", start)
+    normalized_stop = _non_negative_integer("stop", stop)
+    normalized_initial_covered = _non_negative_integer(
+        "initial_covered",
+        initial_covered,
+    )
+    if normalized_start > normalized_stop:
+        raise ValueError("start must not exceed stop")
+    if normalized_stop > simulations:
+        raise ValueError("stop must not exceed simulations")
+    if normalized_initial_covered > normalized_start:
+        raise ValueError("initial_covered must not exceed start")
     if progress_callback is not None and not callable(progress_callback):
         raise TypeError("progress_callback must be callable or None")
 
-    coverage_count = 0
-    for batch_start in range(0, simulations, normalized_batch_size):
-        batch_stop = min(batch_start + normalized_batch_size, simulations)
+    coverage_count = normalized_initial_covered
+    for batch_start in range(
+        normalized_start,
+        normalized_stop,
+        normalized_batch_size,
+    ):
+        batch_stop = min(
+            batch_start + normalized_batch_size,
+            normalized_stop,
+        )
         batch_samples: list[tuple[int, np.ndarray]] = []
 
         for logical_outer_index in range(batch_start, batch_stop):
@@ -305,6 +332,90 @@ def _simulate_bootstrap_coverage_batched(
             )
 
     return coverage_count
+
+
+def _simulate_bootstrap_coverage_batched(
+    *,
+    dgp: DataGenerator,
+    n: int,
+    simulations: int,
+    target_check: MeanTargetCheck,
+    method: BootstrapMeanPercentile,
+    root_seed: int,
+    rng: np.random.Generator,
+    batch_size: int,
+    progress_callback: Callable[[BootstrapCoverageProgress], object] | None = None,
+) -> int:
+    """Run the complete outer experiment through the range kernel."""
+
+    return _simulate_bootstrap_coverage_range(
+        dgp=dgp,
+        n=n,
+        simulations=simulations,
+        target_check=target_check,
+        method=method,
+        root_seed=root_seed,
+        rng=rng,
+        batch_size=batch_size,
+        start=0,
+        stop=simulations,
+        initial_covered=0,
+        progress_callback=progress_callback,
+    )
+
+
+def _resume_bootstrap_mean_coverage(
+    *,
+    dgp: DataGenerator,
+    checkpoint: BootstrapCoverageCheckpoint,
+    batch_size: int,
+) -> tuple[BootstrapCoverageResult, np.random.Generator]:
+    """Resume one validated coverage checkpoint without exposing a public API."""
+
+    if not isinstance(checkpoint, BootstrapCoverageCheckpoint):
+        raise TypeError("checkpoint must be a BootstrapCoverageCheckpoint")
+    normalized_batch_size = _positive_integer("batch_size", batch_size)
+
+    experiment = checkpoint.experiment.bind_dgp(dgp)
+    origin_rng = np.random.Generator(
+        np.random.PCG64(experiment.root_seed)
+    )
+    execution = ExecutionContract.from_generator(origin_rng)
+    checkpoint.validate_for(experiment, execution)
+
+    outer_rng = checkpoint.state.rng.restore_generator()
+    coverage_count = _simulate_bootstrap_coverage_range(
+        dgp=dgp,
+        n=experiment.n,
+        simulations=experiment.simulations,
+        target_check=experiment.target_check,
+        method=experiment.method_config,
+        root_seed=experiment.root_seed,
+        rng=outer_rng,
+        batch_size=normalized_batch_size,
+        start=checkpoint.state.completed,
+        stop=experiment.simulations,
+        initial_covered=checkpoint.state.covered,
+    )
+
+    dgp_name = getattr(dgp, "name", None)
+    if not isinstance(dgp_name, str) or not dgp_name:
+        raise TypeError("DGP must expose a non-empty name string")
+
+    result = BootstrapCoverageResult.from_coverage_count(
+        dgp=dgp_name,
+        dgp_identity=experiment.dgp_identity,
+        n=experiment.n,
+        simulations=experiment.simulations,
+        seed=experiment.root_seed,
+        method_config=experiment.method_config,
+        target_check=experiment.target_check,
+        coverage_count=coverage_count,
+        tolerance=experiment.tolerance,
+        evidence_confidence_level=experiment.evidence_confidence_level,
+        evidence_interval_method=experiment.evidence_interval_method,
+    )
+    return result, outer_rng
 
 
 @dataclass(frozen=True)
