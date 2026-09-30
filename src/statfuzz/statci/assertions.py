@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult
 from .model import StatCIResult, StatisticalAssertion
 
 
@@ -27,7 +27,7 @@ class StatisticalAssertionError(AssertionError):
 
 
 def check_property(
-    result: StressTestResult,
+    result: StatisticalPropertyResult,
     *,
     property: str,
     target: float,
@@ -44,7 +44,7 @@ def check_property(
 
 
 def assert_property(
-    result: StressTestResult,
+    result: StatisticalPropertyResult,
     *,
     property: str,
     target: float,
