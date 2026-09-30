@@ -17,7 +17,6 @@ from statfuzz.dgp import DGPIdentity, Normal
 from statfuzz.methods import BootstrapMeanPercentile
 from statfuzz.targets import MeanTarget
 
-
 ROOT_SEED = 20260930
 
 
