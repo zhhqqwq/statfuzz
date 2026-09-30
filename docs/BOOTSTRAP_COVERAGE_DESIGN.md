@@ -843,3 +843,38 @@ draw, and a fully completed checkpoint resumes without drawing again.
 Changing batch size across the checkpoint boundary is intentionally not tested
 in D3 and remains Phase D4. No public `bootstrap_mean_coverage()` resume API
 exists yet.
+
+
+## 27. Bootstrap Phase D4 implementation status
+
+Phase D4 validates cross-batch resume semantics and does not broaden the public
+API.
+
+The checkpoint boundary remains a fully committed logical boundary, but the
+outer batch size used before and after that boundary may differ. The validated
+transition set is `1->7`, `7->2`, `2->64`, and `64->1`.
+
+For each transition and every built-in DGP, a real prefix is executed using the
+prefix batch size, a checkpoint is captured at that complete batch boundary,
+and the same checkpoint is resumed using the new batch size. The resulting
+execution is compared against the independent scalar outer oracle.
+
+Exact equality is required for:
+
+- the complete outer DGP sample sequence;
+- the complete coverage-event sequence;
+- final `BootstrapCoverageResult`;
+- final cumulative coverage count;
+- final outer PCG64 state and following random stream.
+
+The tests also confirm that batch scheduling remains absent from persistent
+experiment/fingerprint identity, so the same checkpoint validates when the
+resume batch size changes.
+
+No production code change was required: the D3 range executor already starts
+new scheduling at `checkpoint.state.completed`, outer sample assignment is
+strictly logical-index ordered, and bootstrap child streams are derived solely
+from root seed plus logical index.
+
+Phase D is therefore complete at the internal reliability layer. A public
+checkpoint/resume workflow remains intentionally deferred.
