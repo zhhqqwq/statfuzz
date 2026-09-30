@@ -458,3 +458,37 @@ Existing Type-I baseline loading remains unchanged and
 Phase 2A explicitly does not enable `compare_results(...)` or
 `compare_suites(...)` for Bootstrap coverage. Those calls reject coverage
 results until Phase 2B defines the regression/worsening semantics.
+
+
+## Bootstrap StatCI single-result regression comparison
+
+StatCI Phase 2B enables `compare_results(...)` for exactly matched Bootstrap
+coverage checks while keeping suite matching deferred.
+
+Coverage comparison first constructs the Phase 2A
+`BootstrapCoverageComparisonKey` for baseline and current results. The
+comparison proceeds only when those keys are exactly equal.
+
+After identity matching, Bootstrap coverage reuses the existing
+`RegressionPolicy` semantics without a coverage-specific worsening formula:
+
+`worsening = current.absolute_deviation - baseline.absolute_deviation`
+
+For conservative uncertainty mode:
+
+`uncertainty_scale = baseline.mcse + current.mcse`
+
+For independent uncertainty mode:
+
+`uncertainty_scale = sqrt(baseline.mcse**2 + current.mcse**2)`
+
+Independent mode continues to require known, distinct baseline/current seeds.
+
+A regression is reported only when worsening is strictly greater than:
+
+`minimum_worsening + uncertainty_multiplier * uncertainty_scale`
+
+PASS-to-FAIL transitions are recorded but do not bypass the uncertainty guard.
+
+`compare_suites(...)` remains unavailable for Bootstrap coverage in this
+phase; suite matching and regression-summary integration remain deferred.
