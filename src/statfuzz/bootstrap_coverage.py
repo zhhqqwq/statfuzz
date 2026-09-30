@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from numbers import Integral, Real
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 
