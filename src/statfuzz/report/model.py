@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..result import StressTestResult
+from ..bootstrap_coverage import BootstrapCoverageResult
+from ..result import StatisticalPropertyResult, StressTestResult
 from ..search.family import FamilyShrinkResult
 from ..search.grid import GridSearchResult
 from ..search.multiplicity import (
@@ -25,9 +26,53 @@ REPORT_SCHEMA_VERSION = "1.3"
 
 
 @dataclass(frozen=True)
-class StressTestSnapshot:
+class PropertyResultSnapshot:
     method: str
     metric: str
+    simulations: int
+    seed: int | None
+    nominal: float
+    empirical: float
+    mcse: float
+    tolerance: float
+    deviation: float
+    status: str
+
+    @classmethod
+    def from_result(
+        cls,
+        result: StatisticalPropertyResult,
+    ) -> PropertyResultSnapshot:
+        return cls(
+            method=result.method,
+            metric=result.metric,
+            simulations=result.simulations,
+            seed=result.seed,
+            nominal=result.nominal,
+            empirical=result.empirical,
+            mcse=result.mcse,
+            tolerance=result.tolerance,
+            deviation=result.deviation,
+            status=result.status,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "method": self.method,
+            "metric": self.metric,
+            "simulations": self.simulations,
+            "seed": self.seed,
+            "nominal": self.nominal,
+            "empirical": self.empirical,
+            "mcse": self.mcse,
+            "tolerance": self.tolerance,
+            "deviation": self.deviation,
+            "status": self.status,
+        }
+
+
+@dataclass(frozen=True)
+class StressTestSnapshot(PropertyResultSnapshot):
     dgp1: str
     dgp2: str
     dgp1_identity: dict[str, object] | None
@@ -40,14 +85,6 @@ class StressTestSnapshot:
     interval_high: float | None
     n1: int
     n2: int
-    simulations: int
-    seed: int | None
-    nominal: float
-    empirical: float
-    mcse: float
-    tolerance: float
-    deviation: float
-    status: str
 
     @classmethod
     def from_result(cls, result: StressTestResult) -> StressTestSnapshot:
@@ -120,11 +157,93 @@ class StressTestSnapshot:
 
 
 @dataclass(frozen=True)
+class BootstrapCoverageSnapshot(PropertyResultSnapshot):
+    dgp: str
+    dgp_identity: dict[str, object]
+    target_check: dict[str, object]
+    coverage_count: int
+    evidence_confidence_level: float
+    evidence_interval_method: str
+    evidence_interval_low: float
+    evidence_interval_high: float
+    n: int
+    bootstrap_method: dict[str, object]
+
+    @classmethod
+    def from_result(
+        cls,
+        result: BootstrapCoverageResult,
+    ) -> BootstrapCoverageSnapshot:
+        return cls(
+            method=result.method,
+            metric=result.metric,
+            dgp=result.dgp,
+            dgp_identity=result.dgp_identity.as_dict(),
+            target_check=result.target_check.as_dict(),
+            coverage_count=result.coverage_count,
+            evidence_confidence_level=result.evidence_confidence_level,
+            evidence_interval_method=result.evidence_interval_method,
+            evidence_interval_low=result.evidence_interval_low,
+            evidence_interval_high=result.evidence_interval_high,
+            n=result.n,
+            bootstrap_method=result.method_config.as_dict(),
+            simulations=result.simulations,
+            seed=result.seed,
+            nominal=result.nominal,
+            empirical=result.empirical,
+            mcse=result.mcse,
+            tolerance=result.tolerance,
+            deviation=result.deviation,
+            status=result.status,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "method": self.method,
+            "metric": self.metric,
+            "dgp": self.dgp,
+            "dgp_identity": dict(self.dgp_identity),
+            "target_check": dict(self.target_check),
+            "coverage_count": self.coverage_count,
+            "evidence_interval": {
+                "level": self.evidence_confidence_level,
+                "method": self.evidence_interval_method,
+                "low": self.evidence_interval_low,
+                "high": self.evidence_interval_high,
+            },
+            "bootstrap_method": dict(self.bootstrap_method),
+            "n": self.n,
+            "simulations": self.simulations,
+            "seed": self.seed,
+            "nominal": self.nominal,
+            "empirical": self.empirical,
+            "mcse": self.mcse,
+            "tolerance": self.tolerance,
+            "deviation": self.deviation,
+            "status": self.status,
+        }
+
+
+def snapshot_property_result(
+    result: StatisticalPropertyResult,
+) -> PropertyResultSnapshot:
+    if isinstance(result, StressTestResult):
+        return StressTestSnapshot.from_result(result)
+    if isinstance(result, BootstrapCoverageResult):
+        return BootstrapCoverageSnapshot.from_result(result)
+    if not isinstance(result, StatisticalPropertyResult):
+        raise TypeError(
+            "report results must satisfy StatisticalPropertyResult"
+        )
+    return PropertyResultSnapshot.from_result(result)
+
+
+@dataclass(frozen=True)
 class SearchRecordSnapshot:
     parameters: dict[str, JSONScalar]
     seed: int | None
     objective_score: float
-    result: StressTestSnapshot
+    result: PropertyResultSnapshot
 
     @classmethod
     def from_record(
@@ -136,7 +255,7 @@ class SearchRecordSnapshot:
             parameters=record.point.as_dict(),
             seed=record.seed,
             objective_score=record.objective_score(search.objective),
-            result=StressTestSnapshot.from_result(record.result),
+            result=snapshot_property_result(record.result),
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -212,8 +331,8 @@ class ValidationSnapshot:
     validation_root_seed: int
     search_seed: int | None
     validation_seed: int
-    search_result: StressTestSnapshot
-    validation_result: StressTestSnapshot
+    search_result: PropertyResultSnapshot
+    validation_result: PropertyResultSnapshot
 
     @classmethod
     def from_validation(
@@ -227,8 +346,8 @@ class ValidationSnapshot:
             validation_root_seed=validation.validation_root_seed,
             search_seed=validation.search_seed,
             validation_seed=validation.validation_seed,
-            search_result=StressTestSnapshot.from_result(validation.search_result),
-            validation_result=StressTestSnapshot.from_result(
+            search_result=snapshot_property_result(validation.search_result),
+            validation_result=snapshot_property_result(
                 validation.validation_result
             ),
         )
@@ -251,8 +370,8 @@ class ShrinkSnapshot:
     kind: str
     start: dict[str, object]
     final: dict[str, object]
-    start_result: StressTestSnapshot
-    final_result: StressTestSnapshot
+    start_result: PropertyResultSnapshot
+    final_result: PropertyResultSnapshot
     criterion: str
     root_seed: int
     simulations: int
@@ -268,8 +387,8 @@ class ShrinkSnapshot:
             kind="scalar",
             start=shrink.start_point.as_dict(),
             final=shrink.final_point.as_dict(),
-            start_result=StressTestSnapshot.from_result(shrink.start_result),
-            final_result=StressTestSnapshot.from_result(shrink.final_result),
+            start_result=snapshot_property_result(shrink.start_result),
+            final_result=snapshot_property_result(shrink.final_result),
             criterion=shrink.criterion_name,
             root_seed=shrink.root_seed,
             simulations=shrink.simulations,
@@ -286,8 +405,8 @@ class ShrinkSnapshot:
             kind="family",
             start=shrink.start.as_dict(),
             final=shrink.final.as_dict(),
-            start_result=StressTestSnapshot.from_result(shrink.start_result),
-            final_result=StressTestSnapshot.from_result(shrink.final_result),
+            start_result=snapshot_property_result(shrink.start_result),
+            final_result=snapshot_property_result(shrink.final_result),
             criterion=shrink.criterion_name,
             root_seed=shrink.root_seed,
             simulations=shrink.simulations,

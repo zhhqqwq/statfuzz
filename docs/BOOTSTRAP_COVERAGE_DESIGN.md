@@ -987,3 +987,44 @@ Repeating the full family shrink must produce exactly equal
 Only stale Type-I-specific seed-passthrough wording in the family shrinker was
 generalized to refer to the statistical evaluation. Report and StatCI remain
 out of scope after Phase E3.
+
+
+## 31. Bootstrap report integration status
+
+Report integration adds a property-generic internal snapshot layer without
+changing StatCI.
+
+`PropertyResultSnapshot` carries the common statistical-property fields used
+by reporting. Existing `StressTestSnapshot` remains the Type-I specialization
+and preserves its previous serialized JSON shape exactly.
+`BootstrapCoverageSnapshot` is the coverage specialization.
+
+Search-record, validation, scalar-shrink, family-shrink, and failure-map
+snapshots now depend on the generic snapshot layer rather than directly on
+`StressTestSnapshot`.
+
+The Bootstrap coverage snapshot records:
+
+- method and coverage metric;
+- DGP display name and stable `DGPIdentity`;
+- resolved `MeanTargetCheck`;
+- coverage count;
+- full `BootstrapMeanPercentile` machine identity;
+- Monte Carlo evidence confidence level, interval method, and bounds;
+- sample size and the shared statistical-property fields.
+
+HTML dispatch is result-specific. Type-I reports keep the existing
+`Rejections / Binomial interval / Null verification` presentation.
+Bootstrap coverage reports use `Covered / MC evidence interval / Mean target`.
+A generic common-field fallback remains available for other structural
+`StatisticalPropertyResult` implementations.
+
+Integration tests build one report containing real Bootstrap grid search,
+independent validation, parameter shrinking, family shrinking, and a 2D failure
+map. They also require deterministic JSON/HTML-ready snapshots.
+
+The report schema constant remains `1.3`, and a dedicated regression test
+locks the complete legacy Type-I result-object JSON shape plus its Type-I HTML
+search-table vocabulary.
+
+StatCI remains out of scope.
