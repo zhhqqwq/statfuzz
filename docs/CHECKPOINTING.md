@@ -598,3 +598,44 @@ initial boundary `completed=0, covered=0`.
 This phase intentionally does not connect these models to
 `bootstrap_mean_coverage()`, does not write checkpoint files, and does not
 resume execution.
+
+
+## Bootstrap coverage checkpoint persistence and minimal resume
+
+Bootstrap Phase D3 adds a coverage-specific persistent checkpoint container with
+schema:
+
+`statfuzz.bootstrap_coverage.checkpoint/1`
+
+The container stores:
+
+- the canonical `BootstrapCoverageExperimentSpec`;
+- the exact `ExecutionContract`;
+- `BootstrapCoverageCheckpointState(completed, covered, outer RNGSnapshot)`;
+- the SHA-256 experiment/execution fingerprint.
+
+The container performs strict schema validation and recomputes the fingerprint
+during deserialization. It supports JSON round-trip, file read, and atomic
+same-directory persistence using temp-file write, flush, `fsync`, and
+`os.replace`. A failed replace preserves the previous destination and removes
+the temporary file.
+
+Phase D3 also introduces an internal-only resume path. Before any new outer
+sample is drawn it:
+
+1. rebinds the checkpoint experiment to the concrete runtime DGP;
+2. recreates the current outer-PCG64 `ExecutionContract`;
+3. validates the checkpoint fingerprint against that experiment/execution;
+4. restores the exact committed outer RNG snapshot;
+5. continues from logical index `completed` with cumulative `covered`.
+
+The execution kernel is expressed as a logical range
+`[start, stop)` with an initial committed coverage count. The normal
+uninterrupted path remains `start=0, initial_covered=0`.
+
+Phase D3 validates only fixed-batch resume: the batch size used before the
+checkpoint and after resume is the same. Cross-batch resume remains reserved for
+Phase D4.
+
+There is still no public checkpoint/resume argument on
+`bootstrap_mean_coverage()`.
