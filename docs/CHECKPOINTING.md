@@ -544,3 +544,57 @@ The following invariants are exact:
 This confirms that `batch_size` remains execution scheduling only: it is not
 part of experiment identity or seed derivation, and changing it after a
 committed checkpoint does not change the statistical experiment.
+
+
+## Bootstrap coverage checkpoint model
+
+Bootstrap Phase D2 defines the persistent identity and committed-state model for
+percentile-bootstrap mean coverage without enabling checkpoint write/resume in
+`bootstrap_mean_coverage()`.
+
+The canonical experiment schema is:
+
+`statfuzz.bootstrap_coverage.experiment/1`
+
+Its semantic identity includes:
+
+- full `BootstrapMeanPercentile` machine identity:
+  method name, method semantics version, resample count, interval level, and
+  quantile method;
+- coverage metric name plus metric semantics version;
+- stable explicit `DGPIdentity`;
+- fully resolved `MeanTargetCheck`, including note;
+- sample size `n`;
+- outer simulation budget;
+- engineering tolerance;
+- Monte Carlo evidence confidence level and interval method;
+- root seed.
+
+The experiment identity deliberately excludes execution scheduling and
+observation controls:
+
+- `batch_size`;
+- progress callback;
+- checkpoint paths;
+- timing or wall-clock metadata.
+
+Exact checkpoint compatibility continues to use the existing
+`ExecutionContract` and SHA-256 `ExperimentFingerprint`. For bootstrap
+coverage, the execution contract must identify the explicit outer `PCG64`
+BitGenerator used by the coverage executor.
+
+The Phase D2 committed state is:
+
+```text
+completed
+covered
+outer RNGSnapshot
+```
+
+with `0 <= covered <= completed`. The RNG snapshot must be PCG64 and uses the
+existing lossless JSON-safe RNG-state encoding. A state may represent the
+initial boundary `completed=0, covered=0`.
+
+This phase intentionally does not connect these models to
+`bootstrap_mean_coverage()`, does not write checkpoint files, and does not
+resume execution.
