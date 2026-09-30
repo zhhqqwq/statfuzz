@@ -5,9 +5,10 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..bootstrap_coverage import BootstrapCoverageResult
 from ..dgp.base import DGPIdentity
 from ..nulls import MeanNullCheck
-from ..result import StressTestResult
+from ..result import StatisticalPropertyResult, StressTestResult
 
 STATCI_SCHEMA_VERSION = "1.2"
 _SUPPORTED_STATCI_SCHEMA_VERSIONS = {"1.0", "1.1", STATCI_SCHEMA_VERSION}
@@ -304,6 +305,86 @@ class StatCIResult:
 
 
 @dataclass(frozen=True)
+class _BootstrapCoverageStatCIResult(StatCIResult):
+    """Current-run StatCI evidence for one Bootstrap coverage assertion."""
+
+    dgp: str = ""
+    dgp_identity: DGPIdentity | None = None
+    target_check: dict[str, object] | None = None
+    coverage_count: int | None = None
+    bootstrap_method: dict[str, object] | None = None
+    evidence_confidence_level: float | None = None
+    evidence_interval_method: str | None = None
+    evidence_interval_low: float | None = None
+    evidence_interval_high: float | None = None
+    n: int | None = None
+
+    def as_dict(self) -> dict[str, object]:
+        if self.dgp_identity is None:
+            raise ValueError(
+                "Bootstrap coverage StatCI evidence requires dgp_identity"
+            )
+        if self.target_check is None:
+            raise ValueError(
+                "Bootstrap coverage StatCI evidence requires target_check"
+            )
+        if self.coverage_count is None:
+            raise ValueError(
+                "Bootstrap coverage StatCI evidence requires coverage_count"
+            )
+        if self.bootstrap_method is None:
+            raise ValueError(
+                "Bootstrap coverage StatCI evidence requires bootstrap_method"
+            )
+        if self.evidence_confidence_level is None:
+            raise ValueError(
+                "Bootstrap coverage StatCI evidence requires evidence interval"
+            )
+        if self.evidence_interval_method is None:
+            raise ValueError(
+                "Bootstrap coverage StatCI evidence requires evidence interval"
+            )
+        if self.evidence_interval_low is None or self.evidence_interval_high is None:
+            raise ValueError(
+                "Bootstrap coverage StatCI evidence requires evidence interval"
+            )
+        if self.n is None:
+            raise ValueError("Bootstrap coverage StatCI evidence requires n")
+
+        return {
+            "schema_version": self.schema_version,
+            "property": self.property,
+            "target": self.target,
+            "tolerance": self.tolerance,
+            "observed": self.observed,
+            "deviation": self.deviation,
+            "absolute_deviation": self.absolute_deviation,
+            "passed": self.passed,
+            "status": self.status,
+            "evidence": {
+                "kind": "bootstrap_coverage",
+                "method": self.method,
+                "metric": self.metric,
+                "dgp": self.dgp,
+                "dgp_identity": self.dgp_identity.as_dict(),
+                "n": self.n,
+                "simulations": self.simulations,
+                "seed": self.seed,
+                "mcse": self.mcse,
+                "target_check": dict(self.target_check),
+                "coverage_count": self.coverage_count,
+                "bootstrap_method": dict(self.bootstrap_method),
+                "evidence_interval": {
+                    "level": self.evidence_confidence_level,
+                    "method": self.evidence_interval_method,
+                    "low": self.evidence_interval_low,
+                    "high": self.evidence_interval_high,
+                },
+            },
+        }
+
+
+@dataclass(frozen=True)
 class StatisticalAssertion:
     """Engineering tolerance assertion for one statistical property."""
 
@@ -323,15 +404,20 @@ class StatisticalAssertion:
         object.__setattr__(self, "target", target)
         object.__setattr__(self, "tolerance", tolerance)
 
-    def evaluate(self, result: StressTestResult) -> StatCIResult:
+    def evaluate(
+        self,
+        result: StatisticalPropertyResult,
+    ) -> StatCIResult:
         """Evaluate the assertion without raising on statistical failure."""
 
-        if not isinstance(result, StressTestResult):
-            raise TypeError("result must be a StressTestResult")
+        if not isinstance(result, StatisticalPropertyResult):
+            raise TypeError(
+                "result must satisfy StatisticalPropertyResult"
+            )
         if result.metric != self.property:
             raise ValueError(
                 f"assertion property {self.property!r} does not match "
-                f"StressTestResult.metric {result.metric!r}"
+                f"result.metric {result.metric!r}"
             )
 
         observed = _finite("result.empirical", result.empirical)
@@ -343,29 +429,60 @@ class StatisticalAssertion:
         absolute_deviation = abs(deviation)
         passed = absolute_deviation <= self.tolerance
 
-        return StatCIResult(
-            property=self.property,
-            target=self.target,
-            tolerance=self.tolerance,
-            observed=observed,
-            deviation=deviation,
-            absolute_deviation=absolute_deviation,
-            passed=passed,
-            method=result.method,
-            metric=result.metric,
-            dgp1=result.dgp1,
-            dgp2=result.dgp2,
-            n1=result.n1,
-            n2=result.n2,
-            simulations=result.simulations,
-            seed=result.seed,
-            mcse=mcse,
-            dgp1_identity=result.dgp1_identity,
-            dgp2_identity=result.dgp2_identity,
-            null_check=result.null_check,
-            rejection_count=result.rejection_count,
-            confidence_level=result.confidence_level,
-            interval_method=result.interval_method,
-            interval_low=result.interval_low,
-            interval_high=result.interval_high,
+        common = {
+            "property": self.property,
+            "target": self.target,
+            "tolerance": self.tolerance,
+            "observed": observed,
+            "deviation": deviation,
+            "absolute_deviation": absolute_deviation,
+            "passed": passed,
+            "method": result.method,
+            "metric": result.metric,
+            "simulations": result.simulations,
+            "seed": result.seed,
+            "mcse": mcse,
+        }
+
+        if isinstance(result, StressTestResult):
+            return StatCIResult(
+                **common,
+                dgp1=result.dgp1,
+                dgp2=result.dgp2,
+                n1=result.n1,
+                n2=result.n2,
+                dgp1_identity=result.dgp1_identity,
+                dgp2_identity=result.dgp2_identity,
+                null_check=result.null_check,
+                rejection_count=result.rejection_count,
+                confidence_level=result.confidence_level,
+                interval_method=result.interval_method,
+                interval_low=result.interval_low,
+                interval_high=result.interval_high,
+            )
+
+        if isinstance(result, BootstrapCoverageResult):
+            return _BootstrapCoverageStatCIResult(
+                **common,
+                dgp1=result.dgp,
+                dgp2=result.dgp,
+                n1=result.n,
+                n2=result.n,
+                dgp1_identity=result.dgp_identity,
+                dgp2_identity=result.dgp_identity,
+                dgp=result.dgp,
+                dgp_identity=result.dgp_identity,
+                target_check=result.target_check.as_dict(),
+                coverage_count=result.coverage_count,
+                bootstrap_method=result.method_config.as_dict(),
+                evidence_confidence_level=result.evidence_confidence_level,
+                evidence_interval_method=result.evidence_interval_method,
+                evidence_interval_low=result.evidence_interval_low,
+                evidence_interval_high=result.evidence_interval_high,
+                n=result.n,
+            )
+
+        raise TypeError(
+            "StatCI currently supports StressTestResult and "
+            "BootstrapCoverageResult"
         )

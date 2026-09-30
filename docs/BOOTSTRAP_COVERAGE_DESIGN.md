@@ -1028,3 +1028,43 @@ locks the complete legacy Type-I result-object JSON shape plus its Type-I HTML
 search-table vocabulary.
 
 StatCI remains out of scope.
+
+
+## 32. Bootstrap StatCI Phase 1 implementation status
+
+StatCI Phase 1 connects real `BootstrapCoverageResult` values to the existing
+engineering-tolerance assertion path only.
+
+`check_property(...)`, `assert_property(...)`, and
+`StatisticalAssertion.evaluate(...)` now accept the structural
+`StatisticalPropertyResult` input contract. Existing `StressTestResult`
+values continue through the original Type-I construction path without changing
+their serialized evidence.
+
+For Bootstrap coverage, the assertion computes PASS/FAIL with the existing
+inclusive rule:
+
+`abs(empirical_coverage - target) <= tolerance`
+
+MCSE remains evidence only and does not alter that threshold.
+
+Bootstrap current-run evidence is a coverage-specific variant containing:
+
+- `kind = bootstrap_coverage`;
+- method and coverage metric;
+- DGP display name and stable identity;
+- n, simulations, seed, and MCSE;
+- resolved mean-target check;
+- coverage count;
+- full bootstrap method identity;
+- Wilson Monte Carlo evidence interval.
+
+The StatCI schema constant remains `1.2`. A dedicated regression test locks
+the legacy Type-I evidence dictionary exactly, while another locks the complete
+existing GitHub Actions summary text for a Type-I check. The GitHub summary
+renderer itself is unchanged and works for coverage assertions using the common
+top-level StatCI result fields.
+
+Phase 1 does not modify `statci/regression.py`, regression comparison keys,
+baseline matching, baseline loading semantics, or status-artifact schemas.
+Bootstrap regression/baseline integration remains a separate future phase.
