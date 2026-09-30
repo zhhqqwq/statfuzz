@@ -201,6 +201,56 @@ def _simulate_bootstrap_coverage_scalar(
     return coverage_count
 
 
+def _simulate_bootstrap_coverage_batched(
+    *,
+    dgp: DataGenerator,
+    n: int,
+    simulations: int,
+    target_check: MeanTargetCheck,
+    method: BootstrapMeanPercentile,
+    root_seed: int,
+    rng: np.random.Generator,
+    batch_size: int,
+) -> int:
+    """Run outer coverage batches without changing logical RNG semantics."""
+
+    if not isinstance(rng, np.random.Generator):
+        raise TypeError("rng must be a numpy.random.Generator")
+    normalized_batch_size = _positive_integer("batch_size", batch_size)
+
+    coverage_count = 0
+    for batch_start in range(0, simulations, normalized_batch_size):
+        batch_stop = min(batch_start + normalized_batch_size, simulations)
+        batch_samples: list[tuple[int, np.ndarray]] = []
+
+        for logical_outer_index in range(batch_start, batch_stop):
+            sample = _checked_outer_sample(
+                dgp,
+                rng,
+                n,
+                logical_outer_index=logical_outer_index,
+            )
+            batch_samples.append((logical_outer_index, sample))
+
+        for logical_outer_index, sample in batch_samples:
+            try:
+                event = bootstrap_mean_coverage_event(
+                    sample,
+                    target_check=target_check,
+                    method=method,
+                    root_seed=root_seed,
+                    logical_outer_index=logical_outer_index,
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    f"simulation {logical_outer_index}: "
+                    "bootstrap coverage evaluation failed"
+                ) from exc
+            coverage_count += int(event.covered)
+
+    return coverage_count
+
+
 @dataclass(frozen=True)
 class BootstrapCoverageResult:
     """Aggregate coverage result contract for percentile bootstrap mean intervals."""
@@ -371,11 +421,13 @@ def bootstrap_mean_coverage(
     mean_target: MeanTarget | None = None,
     evidence_confidence_level: float = 0.95,
     evidence_interval_method: str = "wilson",
+    batch_size: int = 64,
 ) -> BootstrapCoverageResult:
-    """Estimate percentile-bootstrap mean interval coverage by scalar Monte Carlo.
+    """Estimate percentile-bootstrap mean interval coverage by Monte Carlo.
 
-    This Phase C2 reference executor runs logical outer replicates strictly in
-    index order. It has no batching, progress, checkpoint, or resume semantics.
+    Outer batching changes only execution scheduling. DGP samples and bootstrap
+    child streams remain assigned by logical outer index. No bootstrap
+    vectorization, progress, checkpoint, or resume semantics are present.
     """
 
     normalized_n = _positive_integer("n", n)
@@ -386,6 +438,7 @@ def bootstrap_mean_coverage(
         "evidence_confidence_level",
         evidence_confidence_level,
     )
+    normalized_batch_size = _positive_integer("batch_size", batch_size)
     if evidence_interval_method != "wilson":
         raise ValueError("evidence_interval_method must currently be 'wilson'")
     if mean_target is not None and not isinstance(mean_target, MeanTarget):
@@ -405,7 +458,7 @@ def bootstrap_mean_coverage(
         raise TypeError("DGP must expose a non-empty name string")
 
     outer_rng = np.random.Generator(np.random.PCG64(normalized_seed))
-    coverage_count = _simulate_bootstrap_coverage_scalar(
+    coverage_count = _simulate_bootstrap_coverage_batched(
         dgp=dgp,
         n=normalized_n,
         simulations=normalized_simulations,
@@ -413,6 +466,7 @@ def bootstrap_mean_coverage(
         method=method_config,
         root_seed=normalized_seed,
         rng=outer_rng,
+        batch_size=normalized_batch_size,
     )
 
     return BootstrapCoverageResult.from_coverage_count(
