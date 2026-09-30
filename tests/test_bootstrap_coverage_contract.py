@@ -14,7 +14,6 @@ from statfuzz.metrics import BinomialRateEvidence, binomial_rate_evidence
 from statfuzz.result import StatisticalPropertyResult
 from statfuzz.targets import MeanTargetCheck
 
-
 ROOT_SEED = 20260930
 SAMPLE = np.array([1.0, 2.0, 4.0, 8.0])
 METHOD = BootstrapMeanPercentile(resamples=7, interval_level=0.8)
