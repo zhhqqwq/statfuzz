@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from ..search.result import SearchResult
 from ..search.space import JSONScalar
-from .model import StressTestSnapshot
+from .model import PropertyResultSnapshot, snapshot_property_result
 
 
 def _identity(value: JSONScalar) -> str:
@@ -43,7 +43,7 @@ class FailureMapCell:
     y: JSONScalar
     parameters: dict[str, JSONScalar]
     objective_score: float
-    result: StressTestSnapshot
+    result: PropertyResultSnapshot
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -191,7 +191,7 @@ def failure_map_2d(
             y=y,
             parameters=record.point.as_dict(),
             objective_score=record.objective_score(search.objective),
-            result=StressTestSnapshot.from_result(record.result),
+            result=snapshot_property_result(record.result),
         )
 
     return FailureMap2D(
