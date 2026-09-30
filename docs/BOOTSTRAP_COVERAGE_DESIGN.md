@@ -1068,3 +1068,56 @@ top-level StatCI result fields.
 Phase 1 does not modify `statci/regression.py`, regression comparison keys,
 baseline matching, baseline loading semantics, or status-artifact schemas.
 Bootstrap regression/baseline integration remains a separate future phase.
+
+
+## 33. Bootstrap StatCI Phase 2A implementation status
+
+Phase 2A defines Bootstrap coverage regression identity and persistent baseline
+loading only. It does not define a regression decision policy.
+
+`BootstrapCoverageComparisonKey` is the stable check identity. It includes:
+
+- StatCI property;
+- assertion target and tolerance;
+- method and metric;
+- canonical stable `DGPIdentity`;
+- canonical complete `MeanTargetCheck`;
+- canonical complete `BootstrapMeanPercentile` identity;
+- sample size `n`.
+
+The key excludes seed, outer simulation budget, empirical coverage, MCSE,
+coverage count, and Monte Carlo evidence interval settings. Those values belong
+to an individual Monte Carlo realization/evidence budget rather than the
+identity of the statistical assertion. As a result, independent seeds and
+different simulation budgets can still match the same future baseline/current
+check.
+
+The comparison key has strict structured serialization plus canonical JSON and
+supports exact `as_dict -> from_dict -> canonical_json` round-trip.
+
+Phase 1 coverage StatCI evidence is now loadable as a strict baseline.
+`StatCIResult.from_dict(...)` dispatches on
+`evidence.kind = bootstrap_coverage` and validates an exact coverage evidence
+schema. It reconstructs typed:
+
+- `DGPIdentity`;
+- `MeanTargetCheck`;
+- `BootstrapMeanPercentile`;
+
+and validates:
+
+- coverage count against simulations/observed;
+- evidence interval bounds around observed coverage;
+- method identity consistency;
+- assertion deviation, absolute deviation, PASS/FAIL, and status consistency.
+
+Because `StatCISuiteResult` already delegates child loading to
+`StatCIResult.from_dict(...)`, persisted suites containing Bootstrap coverage
+checks now round-trip exactly as baseline data.
+
+Legacy Type-I loading and `STATCI_SCHEMA_VERSION = 1.2` remain unchanged.
+
+To keep Phase 2A isolated from regression policy, the existing Type-I
+`StatCIComparisonKey` explicitly rejects Bootstrap coverage results, and
+`compare_results(...)` / `compare_suites(...)` therefore remain unavailable
+for coverage until Phase 2B.
