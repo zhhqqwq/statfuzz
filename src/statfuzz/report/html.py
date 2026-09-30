@@ -4,7 +4,12 @@ from html import escape
 from pathlib import Path
 
 from .map import FailureMap2D
-from .model import StatFuzzReport, StressTestSnapshot
+from .model import (
+    BootstrapCoverageSnapshot,
+    PropertyResultSnapshot,
+    StatFuzzReport,
+    StressTestSnapshot,
+)
 
 
 def _text(value: object) -> str:
@@ -19,22 +24,70 @@ def _e(value: object) -> str:
     return escape(_text(value), quote=True)
 
 
-def _interval_text(result: StressTestSnapshot) -> str:
-    if result.confidence_level is None:
-        return "—"
-    return (
-        f"{100.0 * result.confidence_level:g}% {result.interval_method} "
-        f"[{result.interval_low:.6g}, {result.interval_high:.6g}]"
-    )
+def _interval_text(result: PropertyResultSnapshot) -> str:
+    if isinstance(result, StressTestSnapshot):
+        if result.confidence_level is None:
+            return "—"
+        return (
+            f"{100.0 * result.confidence_level:g}% {result.interval_method} "
+            f"[{result.interval_low:.6g}, {result.interval_high:.6g}]"
+        )
+
+    if isinstance(result, BootstrapCoverageSnapshot):
+        return (
+            f"{100.0 * result.evidence_confidence_level:g}% "
+            f"{result.evidence_interval_method} "
+            f"[{result.evidence_interval_low:.6g}, "
+            f"{result.evidence_interval_high:.6g}]"
+        )
+
+    return "—"
 
 
-def _result_summary(result: StressTestSnapshot) -> str:
+def _result_summary(result: PropertyResultSnapshot) -> str:
     status_class = (
         "status-pass" if result.status == "PASS" else "status-fail"
     )
-    null_source = (
-        None if result.null_check is None else result.null_check.get("source")
-    )
+
+    if isinstance(result, StressTestSnapshot):
+        null_source = (
+            None if result.null_check is None else result.null_check.get("source")
+        )
+        return (
+            '<dl class="metrics">'
+            f"<dt>Method</dt><dd>{_e(result.method)}</dd>"
+            f"<dt>Metric</dt><dd>{_e(result.metric)}</dd>"
+            f"<dt>Empirical</dt><dd>{_e(result.empirical)}</dd>"
+            f"<dt>Nominal</dt><dd>{_e(result.nominal)}</dd>"
+            f"<dt>Deviation</dt><dd>{_e(result.deviation)}</dd>"
+            f"<dt>MCSE</dt><dd>{_e(result.mcse)}</dd>"
+            f"<dt>Rejections</dt><dd>{_e(result.rejection_count)}</dd>"
+            f"<dt>Binomial interval</dt><dd>{_e(_interval_text(result))}</dd>"
+            f"<dt>Null verification</dt><dd>{_e(null_source)}</dd>"
+            f"<dt>Simulations</dt><dd>{_e(result.simulations)}</dd>"
+            f'<dt>Status</dt><dd class="{status_class}">{_e(result.status)}</dd>'
+            "</dl>"
+        )
+
+    if isinstance(result, BootstrapCoverageSnapshot):
+        target_source = result.target_check.get("source")
+        return (
+            '<dl class="metrics">'
+            f"<dt>Method</dt><dd>{_e(result.method)}</dd>"
+            f"<dt>Metric</dt><dd>{_e(result.metric)}</dd>"
+            f"<dt>DGP</dt><dd>{_e(result.dgp)}</dd>"
+            f"<dt>Empirical</dt><dd>{_e(result.empirical)}</dd>"
+            f"<dt>Nominal</dt><dd>{_e(result.nominal)}</dd>"
+            f"<dt>Deviation</dt><dd>{_e(result.deviation)}</dd>"
+            f"<dt>MCSE</dt><dd>{_e(result.mcse)}</dd>"
+            f"<dt>Covered</dt><dd>{_e(result.coverage_count)}</dd>"
+            f"<dt>MC evidence interval</dt><dd>{_e(_interval_text(result))}</dd>"
+            f"<dt>Mean target</dt><dd>{_e(target_source)}</dd>"
+            f"<dt>Simulations</dt><dd>{_e(result.simulations)}</dd>"
+            f'<dt>Status</dt><dd class="{status_class}">{_e(result.status)}</dd>'
+            "</dl>"
+        )
+
     return (
         '<dl class="metrics">'
         f"<dt>Method</dt><dd>{_e(result.method)}</dd>"
@@ -43,9 +96,6 @@ def _result_summary(result: StressTestSnapshot) -> str:
         f"<dt>Nominal</dt><dd>{_e(result.nominal)}</dd>"
         f"<dt>Deviation</dt><dd>{_e(result.deviation)}</dd>"
         f"<dt>MCSE</dt><dd>{_e(result.mcse)}</dd>"
-        f"<dt>Rejections</dt><dd>{_e(result.rejection_count)}</dd>"
-        f"<dt>Binomial interval</dt><dd>{_e(_interval_text(result))}</dd>"
-        f"<dt>Null verification</dt><dd>{_e(null_source)}</dd>"
         f"<dt>Simulations</dt><dd>{_e(result.simulations)}</dd>"
         f'<dt>Status</dt><dd class="{status_class}">{_e(result.status)}</dd>'
         "</dl>"
@@ -179,7 +229,109 @@ def _failure_map_html(failure_map: FailureMap2D) -> str:
     )
 
 
-def _search_table(report: StatFuzzReport) -> str:
+def _stress_search_table(report: StatFuzzReport) -> str:
+    parameter_names = report.search.parameter_names
+    headers = "".join(
+        f"<th>{_e(name)}</th>"
+        for name in parameter_names
+    )
+    rows = []
+
+    for record in report.search.records:
+        params = "".join(
+            f"<td>{_e(record.parameters.get(name))}</td>"
+            for name in parameter_names
+        )
+        status_class = (
+            "status-pass"
+            if record.result.status == "PASS"
+            else "status-fail"
+        )
+        result = record.result
+        if not isinstance(result, StressTestSnapshot):
+            raise TypeError("expected StressTestSnapshot")
+        rows.append(
+            "<tr>"
+            f"{params}"
+            f"<td>{_e(record.objective_score)}</td>"
+            f"<td>{_e(result.empirical)}</td>"
+            f"<td>{_e(result.deviation)}</td>"
+            f"<td>{_e(result.mcse)}</td>"
+            f"<td>{_e(result.rejection_count)}</td>"
+            f"<td>{_e(_interval_text(result))}</td>"
+            f'<td class="{status_class}">{_e(result.status)}</td>'
+            "</tr>"
+        )
+
+    return (
+        '<section id="search-records">'
+        "<h2>Search Records</h2>"
+        f"<p>Strategy: {_e(report.search.strategy)} · "
+        f"Objective: {_e(report.search.objective)} · "
+        f"Root seed: {_e(report.search.root_seed)} · "
+        f"Records: {_e(len(report.search.records))}</p>"
+        '<div class="table-wrap"><table>'
+        f"<thead><tr>{headers}<th>Objective score</th>"
+        "<th>Empirical</th><th>Deviation</th><th>MCSE</th>"
+        "<th>Rejections</th><th>Binomial interval</th><th>Status</th>"
+        f"</tr></thead><tbody>{''.join(rows)}</tbody>"
+        "</table></div>"
+        "</section>"
+    )
+
+
+def _bootstrap_search_table(report: StatFuzzReport) -> str:
+    parameter_names = report.search.parameter_names
+    headers = "".join(
+        f"<th>{_e(name)}</th>"
+        for name in parameter_names
+    )
+    rows = []
+
+    for record in report.search.records:
+        result = record.result
+        if not isinstance(result, BootstrapCoverageSnapshot):
+            raise TypeError("expected BootstrapCoverageSnapshot")
+        params = "".join(
+            f"<td>{_e(record.parameters.get(name))}</td>"
+            for name in parameter_names
+        )
+        status_class = (
+            "status-pass"
+            if result.status == "PASS"
+            else "status-fail"
+        )
+        rows.append(
+            "<tr>"
+            f"{params}"
+            f"<td>{_e(record.objective_score)}</td>"
+            f"<td>{_e(result.empirical)}</td>"
+            f"<td>{_e(result.deviation)}</td>"
+            f"<td>{_e(result.mcse)}</td>"
+            f"<td>{_e(result.coverage_count)}</td>"
+            f"<td>{_e(_interval_text(result))}</td>"
+            f'<td class="{status_class}">{_e(result.status)}</td>'
+            "</tr>"
+        )
+
+    return (
+        '<section id="search-records">'
+        "<h2>Search Records</h2>"
+        f"<p>Strategy: {_e(report.search.strategy)} · "
+        f"Objective: {_e(report.search.objective)} · "
+        f"Root seed: {_e(report.search.root_seed)} · "
+        f"Records: {_e(len(report.search.records))}</p>"
+        '<div class="table-wrap"><table>'
+        f"<thead><tr>{headers}<th>Objective score</th>"
+        "<th>Empirical</th><th>Deviation</th><th>MCSE</th>"
+        "<th>Covered</th><th>MC evidence interval</th><th>Status</th>"
+        f"</tr></thead><tbody>{''.join(rows)}</tbody>"
+        "</table></div>"
+        "</section>"
+    )
+
+
+def _generic_search_table(report: StatFuzzReport) -> str:
     parameter_names = report.search.parameter_names
     headers = "".join(
         f"<th>{_e(name)}</th>"
@@ -204,8 +356,6 @@ def _search_table(report: StatFuzzReport) -> str:
             f"<td>{_e(record.result.empirical)}</td>"
             f"<td>{_e(record.result.deviation)}</td>"
             f"<td>{_e(record.result.mcse)}</td>"
-            f"<td>{_e(record.result.rejection_count)}</td>"
-            f"<td>{_e(_interval_text(record.result))}</td>"
             f'<td class="{status_class}">{_e(record.result.status)}</td>'
             "</tr>"
         )
@@ -219,12 +369,27 @@ def _search_table(report: StatFuzzReport) -> str:
         f"Records: {_e(len(report.search.records))}</p>"
         '<div class="table-wrap"><table>'
         f"<thead><tr>{headers}<th>Objective score</th>"
-        "<th>Empirical</th><th>Deviation</th><th>MCSE</th>"
-        "<th>Rejections</th><th>Binomial interval</th><th>Status</th>"
+        "<th>Empirical</th><th>Deviation</th><th>MCSE</th><th>Status</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody>"
         "</table></div>"
         "</section>"
     )
+
+
+def _search_table(report: StatFuzzReport) -> str:
+    if all(
+        isinstance(record.result, StressTestSnapshot)
+        for record in report.search.records
+    ):
+        return _stress_search_table(report)
+
+    if all(
+        isinstance(record.result, BootstrapCoverageSnapshot)
+        for record in report.search.records
+    ):
+        return _bootstrap_search_table(report)
+
+    return _generic_search_table(report)
 
 
 def _validation_html(report: StatFuzzReport) -> str:
