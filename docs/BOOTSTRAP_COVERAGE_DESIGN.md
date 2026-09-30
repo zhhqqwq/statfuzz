@@ -1172,3 +1172,42 @@ Suite matching is intentionally unchanged. The existing Type-I-only
 `_index_suite(...)` path still rejects Bootstrap coverage, so
 `compare_suites(...)` and regression-summary integration remain deferred to a
 later phase.
+
+
+## 35. Bootstrap StatCI Phase 2C implementation status
+
+Phase 2C enables suite matching without changing regression-summary rendering.
+
+`_index_suite(...)` now derives keys through the same evidence-aware
+`_comparison_key_for_result(...)` dispatcher used by Phase 2B
+`compare_results(...)`. Its index therefore accepts both:
+
+- `StatCIComparisonKey`;
+- `BootstrapCoverageComparisonKey`.
+
+`StatCIRegressionSuiteResult.missing_current` and `new_current` likewise
+store the shared regression-key union.
+
+Because the two frozen key dataclasses are not directly order-comparable with
+one another, Phase 2C adds an explicit deterministic suite sort key. It
+preserves the previous pure Type-I field ordering and then orders Bootstrap
+coverage checks by the Phase 2A identity fields. Mixed suites therefore produce
+stable comparison, missing-key, and new-key ordering independently of input
+suite order.
+
+Reference tests lock:
+
+- a pure Bootstrap coverage suite;
+- the existing pure Type-I ordering;
+- a mixed Type-I + Bootstrap suite;
+- duplicate Bootstrap comparison-key rejection even when seed/simulation
+  budgets differ;
+- strict missing/new Bootstrap key diagnostics;
+- non-strict mixed-suite unmatched-key retention;
+- exact deterministic comparison ordering and JSON across permuted suite input
+  orders.
+
+The existing `compare_results(...)` worsening policy is unchanged.
+`render_regression_summary(...)` and
+`write_regression_summary(...)` are also intentionally unchanged; display
+integration remains a separate phase.
