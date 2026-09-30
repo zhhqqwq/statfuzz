@@ -129,8 +129,8 @@ def random_search(
             raise TypeError("evaluate(point, seed) must return a StatisticalPropertyResult")
         if result.seed != child_seed:
             raise ValueError(
-                "the evaluator must pass the provided seed through to stress_test "
-                "so the search remains reproducible"
+                "the evaluator must pass the provided seed through to the "
+                "statistical evaluation so the search remains reproducible"
             )
 
         record = SearchRecord(point=point, result=result, seed=child_seed)
