@@ -25,6 +25,7 @@ Core:
 
 - `__version__`
 - `BootstrapCoverageResult`
+- `bootstrap_mean_coverage`
 - `stress_test`
 - `StressTestResult`
 - `MeanEqualityNull`
@@ -236,3 +237,28 @@ coverage-specific evidence explicit:
 Phase C1 does not yet provide a public outer simulation function. The
 single-replicate event helper remains an implementation-level reference
 operation until the coverage executor is introduced.
+
+
+## Scalar bootstrap mean coverage executor
+
+`bootstrap_mean_coverage(...)` is the Phase C2 scalar outer reference
+executor. It intentionally has no `batch_size`, progress callback, checkpoint,
+or resume argument.
+
+For logical outer replicate `i`, execution is strictly:
+
+```text
+outer Generator(PCG64(root_seed))
+-> dgp.sample(...)
+-> deterministic bootstrap child_rng(i)
+-> scalar percentile interval oracle
+-> inclusive coverage event
+-> cumulative coverage_count
+```
+
+The outer data Generator is explicitly `PCG64` and is separate from every
+bootstrap child Generator. Therefore changing bootstrap resample count cannot
+change the outer DGP sample sequence.
+
+The scalar executor resolves `MeanTarget` before the first draw and returns a
+`BootstrapCoverageResult` backed by generic binomial-rate Monte Carlo evidence.

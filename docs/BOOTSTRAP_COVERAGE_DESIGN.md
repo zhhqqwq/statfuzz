@@ -647,3 +647,38 @@ a manually inconsistent covered flag.
 
 Outer DGP sampling, simulations loops, batching, progress, checkpoint/resume,
 reporting, and search integration remain out of scope after Phase C1.
+
+
+## 22. Bootstrap Phase C2 implementation status
+
+Phase C2 adds the scalar outer coverage executor only.
+
+The public `bootstrap_mean_coverage(...)` function validates experiment
+configuration and resolves the mean target before sampling. Its outer data RNG
+is explicitly:
+
+`numpy.random.Generator(numpy.random.PCG64(root_seed))`
+
+The internal scalar reference loop evaluates logical outer replicates strictly
+in ascending index order:
+
+1. draw exactly one outer sample from the shared outer data Generator;
+2. derive the already-locked per-index bootstrap child Generator;
+3. call the Phase B3 scalar percentile interval oracle;
+4. evaluate the Phase C1 inclusive coverage event;
+5. increment the cumulative coverage count.
+
+No batch buffering or reordering is present.
+
+Fixed-reference tests lock the complete outer Normal sample sequence, complete
+coverage-event sequence, final coverage count, and final outer RNG consumption
+for a small experiment. A separate test changes bootstrap resample count while
+holding the root seed and outer experiment fixed and proves that the complete
+outer sample sequence and final outer RNG state remain exactly unchanged.
+
+All four built-in DGPs are exercised through the public scalar executor.
+Invalid configuration and unresolved mean truth fail before the first outer
+draw, and malformed DGP samples report the exact logical outer index.
+
+Batching, progress, checkpoint/resume, reporting, and search integration remain
+out of scope after Phase C2.

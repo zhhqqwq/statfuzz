@@ -6,14 +6,14 @@ from numbers import Integral, Real
 
 import numpy as np
 
-from .dgp.base import DGPIdentity
+from .dgp.base import DataGenerator, DGPIdentity, get_dgp_identity
 from .methods.bootstrap import (
     BootstrapMeanPercentile,
     bootstrap_mean_percentile_child_rng,
     bootstrap_mean_percentile_interval,
 )
 from .metrics.binomial_rate import BinomialRateEvidence, binomial_rate_evidence
-from .targets import MeanTargetCheck
+from .targets import MeanTarget, MeanTargetCheck, resolve_mean_target
 
 BOOTSTRAP_COVERAGE_METRIC = "coverage"
 
@@ -45,6 +45,44 @@ def _non_negative_finite_real(name: str, value: object) -> float:
     if normalized < 0.0:
         raise ValueError(f"{name} must be non-negative")
     return normalized
+
+
+def _strict_probability(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise TypeError(f"{name} must be a real number")
+    normalized = float(value)
+    if not math.isfinite(normalized):
+        raise ValueError(f"{name} must be finite")
+    if not 0.0 < normalized < 1.0:
+        raise ValueError(f"{name} must be strictly between 0 and 1")
+    return normalized
+
+
+def _checked_outer_sample(
+    dgp: DataGenerator,
+    rng: np.random.Generator,
+    n: int,
+    *,
+    logical_outer_index: int,
+) -> np.ndarray:
+    try:
+        raw = dgp.sample(rng, n)
+        sample = np.asarray(raw, dtype=float)
+    except Exception as exc:
+        raise RuntimeError(
+            f"simulation {logical_outer_index}: failed to generate outer sample"
+        ) from exc
+
+    if sample.shape != (n,):
+        raise RuntimeError(
+            f"simulation {logical_outer_index}: outer sample must have shape {(n,)}, "
+            f"got {sample.shape}"
+        )
+    if not np.all(np.isfinite(sample)):
+        raise RuntimeError(
+            f"simulation {logical_outer_index}: outer sample contains non-finite values"
+        )
+    return sample
 
 
 @dataclass(frozen=True)
@@ -120,6 +158,47 @@ def bootstrap_mean_coverage_event(
         interval_high=high,
         covered=low <= target_mean <= high,
     )
+
+
+def _simulate_bootstrap_coverage_scalar(
+    *,
+    dgp: DataGenerator,
+    n: int,
+    simulations: int,
+    target_check: MeanTargetCheck,
+    method: BootstrapMeanPercentile,
+    root_seed: int,
+    rng: np.random.Generator,
+) -> int:
+    """Scalar outer reference executor for mean-interval coverage."""
+
+    if not isinstance(rng, np.random.Generator):
+        raise TypeError("rng must be a numpy.random.Generator")
+
+    coverage_count = 0
+    for logical_outer_index in range(simulations):
+        sample = _checked_outer_sample(
+            dgp,
+            rng,
+            n,
+            logical_outer_index=logical_outer_index,
+        )
+        try:
+            event = bootstrap_mean_coverage_event(
+                sample,
+                target_check=target_check,
+                method=method,
+                root_seed=root_seed,
+                logical_outer_index=logical_outer_index,
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"simulation {logical_outer_index}: "
+                "bootstrap coverage evaluation failed"
+            ) from exc
+        coverage_count += int(event.covered)
+
+    return coverage_count
 
 
 @dataclass(frozen=True)
@@ -281,8 +360,79 @@ class BootstrapCoverageResult:
         return "PASS" if self.passed else "OUTSIDE_TOLERANCE"
 
 
+def bootstrap_mean_coverage(
+    *,
+    dgp: DataGenerator,
+    n: int = 20,
+    simulations: int = 1_000,
+    method: BootstrapMeanPercentile | None = None,
+    tolerance: float = 0.01,
+    seed: int = 0,
+    mean_target: MeanTarget | None = None,
+    evidence_confidence_level: float = 0.95,
+    evidence_interval_method: str = "wilson",
+) -> BootstrapCoverageResult:
+    """Estimate percentile-bootstrap mean interval coverage by scalar Monte Carlo.
+
+    This Phase C2 reference executor runs logical outer replicates strictly in
+    index order. It has no batching, progress, checkpoint, or resume semantics.
+    """
+
+    normalized_n = _positive_integer("n", n)
+    normalized_simulations = _positive_integer("simulations", simulations)
+    normalized_seed = _non_negative_integer("seed", seed)
+    normalized_tolerance = _non_negative_finite_real("tolerance", tolerance)
+    normalized_evidence_confidence = _strict_probability(
+        "evidence_confidence_level",
+        evidence_confidence_level,
+    )
+    if evidence_interval_method != "wilson":
+        raise ValueError("evidence_interval_method must currently be 'wilson'")
+    if mean_target is not None and not isinstance(mean_target, MeanTarget):
+        raise TypeError("mean_target must be a MeanTarget or None")
+
+    if method is None:
+        method_config = BootstrapMeanPercentile()
+    elif isinstance(method, BootstrapMeanPercentile):
+        method_config = method
+    else:
+        raise TypeError("method must be a BootstrapMeanPercentile or None")
+
+    target_check = resolve_mean_target(dgp, mean_target)
+    dgp_identity = get_dgp_identity(dgp)
+    dgp_name = getattr(dgp, "name", None)
+    if not isinstance(dgp_name, str) or not dgp_name:
+        raise TypeError("DGP must expose a non-empty name string")
+
+    outer_rng = np.random.Generator(np.random.PCG64(normalized_seed))
+    coverage_count = _simulate_bootstrap_coverage_scalar(
+        dgp=dgp,
+        n=normalized_n,
+        simulations=normalized_simulations,
+        target_check=target_check,
+        method=method_config,
+        root_seed=normalized_seed,
+        rng=outer_rng,
+    )
+
+    return BootstrapCoverageResult.from_coverage_count(
+        dgp=dgp_name,
+        dgp_identity=dgp_identity,
+        n=normalized_n,
+        simulations=normalized_simulations,
+        seed=normalized_seed,
+        method_config=method_config,
+        target_check=target_check,
+        coverage_count=coverage_count,
+        tolerance=normalized_tolerance,
+        evidence_confidence_level=normalized_evidence_confidence,
+        evidence_interval_method=evidence_interval_method,
+    )
+
+
 __all__ = [
     "BootstrapCoverageEvent",
     "BootstrapCoverageResult",
+    "bootstrap_mean_coverage",
     "bootstrap_mean_coverage_event",
 ]

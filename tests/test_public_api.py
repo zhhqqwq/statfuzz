@@ -32,6 +32,7 @@ def test_top_level_public_api_is_intentionally_small():
         "StatisticalAssertionError",
         "StressTestResult",
         "__version__",
+        "bootstrap_mean_coverage",
         "assert_property",
         "assert_regression_suite",
         "assert_suite",
