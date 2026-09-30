@@ -908,3 +908,44 @@ remain unchanged.
 
 Shrinking, report, StatCI, and public checkpoint/resume integration remain out
 of scope after Phase E1.
+
+
+## 29. Bootstrap Phase E2 implementation status
+
+Phase E2 validates parameter shrinking with real
+`BootstrapCoverageResult` values.
+
+The Phase A structural result seam was already sufficient:
+`shrink_counterexample(...)` and its failure criteria operate on
+`StatisticalPropertyResult`, so no shrinking algorithm, seed derivation,
+criterion, or complexity rule needed to change.
+
+The fixed Bootstrap reference trace uses:
+
+- root seed `23`;
+- 40 outer simulations per shrink-stage evaluation;
+- percentile method with 19 bootstrap resamples and interval level 0.8;
+- tolerance 0.10;
+- start point `n=20, sigma=1.4`;
+- shrink levels `n=(4,8,12,20)` and
+  `sigma=(0.1,0.4,0.8,1.4)`.
+
+Tests lock the exact deterministic seeds and coverage counts for the start and
+every proposal. The trace contains both behaviors required by the greedy
+shrinker:
+
+- a simpler point that remains outside tolerance and is accepted;
+- a simpler point whose coverage returns to the nominal target and is rejected.
+
+The final point is `n=4, sigma=0.4`. The n dimension is already at its
+simplest level, while the only simpler sigma proposal (`0.1`) no longer
+satisfies the failure criterion, making the result a stable local minimum under
+the explicit shrink plan.
+
+Repeating the entire shrink run must produce exactly equal results and rows.
+Repeating the same rejected proposal within the trace must reuse the same
+point-derived seed and reproduce the same Bootstrap coverage result.
+
+Only stale Type-I-specific seed-passthrough wording in the parameter shrinker
+was generalized to refer to the statistical evaluation. Family shrinking,
+report, and StatCI remain out of scope after Phase E2.

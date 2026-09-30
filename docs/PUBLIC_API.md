@@ -315,3 +315,22 @@ continues to use the existing generic objective functions over
 `nominal / empirical / deviation`.
 
 Phase E1 does not change shrinking, report, or StatCI behavior.
+
+
+## Bootstrap coverage parameter shrinking
+
+The existing `shrink_counterexample(...)` workflow accepts
+`BootstrapCoverageResult` through the common `StatisticalPropertyResult`
+contract. No bootstrap-specific shrinking API is required.
+
+Each start/proposal point receives the existing deterministic shrink seed
+derived from the shrink root seed and the complete canonical
+`ParameterPoint`. The default `OutsideToleranceCriterion` accepts a simpler
+proposal only when its bootstrap coverage result remains outside tolerance.
+
+Phase E2 validates a real percentile-bootstrap coverage shrink trace with both
+accepted and rejected proposals and a deterministic plan-local minimal final
+point. Repeated evaluation of the same rejected point receives the same seed
+and reproduces the same `BootstrapCoverageResult`.
+
+Family shrinking, reports, and StatCI remain unchanged.
