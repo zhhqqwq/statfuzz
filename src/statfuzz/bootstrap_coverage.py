@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from numbers import Integral, Real
+from typing import Callable
 
 import numpy as np
 
@@ -83,6 +84,48 @@ def _checked_outer_sample(
             f"simulation {logical_outer_index}: outer sample contains non-finite values"
         )
     return sample
+
+
+@dataclass(frozen=True)
+class BootstrapCoverageProgress:
+    """Cumulative snapshot emitted after a committed outer coverage batch."""
+
+    completed: int
+    total: int
+    covered: int
+    empirical: float
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "completed",
+            _positive_integer("completed", self.completed),
+        )
+        object.__setattr__(
+            self,
+            "total",
+            _positive_integer("total", self.total),
+        )
+        object.__setattr__(
+            self,
+            "covered",
+            _non_negative_integer("covered", self.covered),
+        )
+        if self.completed > self.total:
+            raise ValueError("completed must not exceed total")
+        if self.covered > self.completed:
+            raise ValueError("covered must not exceed completed")
+        if isinstance(self.empirical, bool) or not isinstance(self.empirical, Real):
+            raise TypeError("empirical must be a real number")
+        empirical = float(self.empirical)
+        if not math.isfinite(empirical):
+            raise ValueError("empirical must be finite")
+        expected = self.covered / self.completed
+        if empirical != expected:
+            raise ValueError(
+                "empirical must equal covered / completed"
+            )
+        object.__setattr__(self, "empirical", empirical)
 
 
 @dataclass(frozen=True)
@@ -211,12 +254,15 @@ def _simulate_bootstrap_coverage_batched(
     root_seed: int,
     rng: np.random.Generator,
     batch_size: int,
+    progress_callback: Callable[[BootstrapCoverageProgress], object] | None = None,
 ) -> int:
     """Run outer coverage batches without changing logical RNG semantics."""
 
     if not isinstance(rng, np.random.Generator):
         raise TypeError("rng must be a numpy.random.Generator")
     normalized_batch_size = _positive_integer("batch_size", batch_size)
+    if progress_callback is not None and not callable(progress_callback):
+        raise TypeError("progress_callback must be callable or None")
 
     coverage_count = 0
     for batch_start in range(0, simulations, normalized_batch_size):
@@ -247,6 +293,16 @@ def _simulate_bootstrap_coverage_batched(
                     "bootstrap coverage evaluation failed"
                 ) from exc
             coverage_count += int(event.covered)
+
+        if progress_callback is not None:
+            progress_callback(
+                BootstrapCoverageProgress(
+                    completed=batch_stop,
+                    total=simulations,
+                    covered=coverage_count,
+                    empirical=coverage_count / batch_stop,
+                )
+            )
 
     return coverage_count
 
@@ -422,6 +478,7 @@ def bootstrap_mean_coverage(
     evidence_confidence_level: float = 0.95,
     evidence_interval_method: str = "wilson",
     batch_size: int = 64,
+    progress_callback: Callable[[BootstrapCoverageProgress], object] | None = None,
 ) -> BootstrapCoverageResult:
     """Estimate percentile-bootstrap mean interval coverage by Monte Carlo.
 
@@ -439,6 +496,8 @@ def bootstrap_mean_coverage(
         evidence_confidence_level,
     )
     normalized_batch_size = _positive_integer("batch_size", batch_size)
+    if progress_callback is not None and not callable(progress_callback):
+        raise TypeError("progress_callback must be callable or None")
     if evidence_interval_method != "wilson":
         raise ValueError("evidence_interval_method must currently be 'wilson'")
     if mean_target is not None and not isinstance(mean_target, MeanTarget):
@@ -467,6 +526,7 @@ def bootstrap_mean_coverage(
         root_seed=normalized_seed,
         rng=outer_rng,
         batch_size=normalized_batch_size,
+        progress_callback=progress_callback,
     )
 
     return BootstrapCoverageResult.from_coverage_count(
@@ -486,6 +546,7 @@ def bootstrap_mean_coverage(
 
 __all__ = [
     "BootstrapCoverageEvent",
+    "BootstrapCoverageProgress",
     "BootstrapCoverageResult",
     "bootstrap_mean_coverage",
     "bootstrap_mean_coverage_event",
