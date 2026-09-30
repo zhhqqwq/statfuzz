@@ -1121,3 +1121,54 @@ To keep Phase 2A isolated from regression policy, the existing Type-I
 `StatCIComparisonKey` explicitly rejects Bootstrap coverage results, and
 `compare_results(...)` / `compare_suites(...)` therefore remain unavailable
 for coverage until Phase 2B.
+
+
+## 34. Bootstrap StatCI Phase 2B implementation status
+
+Phase 2B enables single-result Bootstrap coverage regression comparison only.
+
+`compare_results(...)` now dispatches comparison identity by evidence kind:
+
+- Type-I / legacy results use the existing `StatCIComparisonKey`;
+- Bootstrap coverage uses the Phase 2A
+  `BootstrapCoverageComparisonKey`.
+
+Baseline and current keys must compare exactly equal before any regression
+calculation occurs.
+
+Coverage does not introduce a second worsening policy. The existing
+`RegressionPolicy` is reused directly because the regression calculation is
+already expressed in property-generic quantities:
+
+- absolute deviation from the asserted target;
+- MCSE;
+- seed identity for independent uncertainty mode;
+- PASS/FAIL transition flags.
+
+The exact formulas remain:
+
+- `worsening = current.absolute_deviation - baseline.absolute_deviation`;
+- conservative uncertainty scale = `baseline.mcse + current.mcse`;
+- independent uncertainty scale =
+  `sqrt(baseline.mcse**2 + current.mcse**2)`;
+- regression threshold =
+  `minimum_worsening + uncertainty_multiplier * uncertainty_scale`;
+- regression iff `worsening > regression_threshold`.
+
+Reference tests lock six semantic cases for coverage:
+
+- STABLE when absolute deviation is unchanged;
+- IMPROVED when current moves closer to target;
+- REGRESSION when worsening exceeds the MCSE guard;
+- PASS-to-FAIL recorded without bypassing the guard;
+- exact Phase 2A identity mismatch rejection;
+- independent-seed root-sum-square MCSE uncertainty.
+
+Additional tests require independent mode to reject equal or unknown seeds and
+require the serialized single-comparison result to carry the structured
+Bootstrap coverage key and coverage evidence.
+
+Suite matching is intentionally unchanged. The existing Type-I-only
+`_index_suite(...)` path still rejects Bootstrap coverage, so
+`compare_suites(...)` and regression-summary integration remain deferred to a
+later phase.
