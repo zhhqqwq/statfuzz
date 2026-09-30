@@ -758,3 +758,43 @@ exact equality of:
 
 Checkpointing, resume, reporting, search integration, and bootstrap
 vectorization remain out of scope after Phase D1.
+
+
+## 25. Bootstrap Phase D2 implementation status
+
+Phase D2 defines coverage-specific checkpoint identity and committed state only.
+
+`BootstrapCoverageExperimentSpec` is the canonical persistent experiment
+identity. Its fingerprint is computed through the existing
+`ExecutionContract + ExperimentFingerprint(SHA-256)` infrastructure.
+
+The fingerprint includes the canonical experiment payload containing:
+
+- `BootstrapMeanPercentile` identity;
+- coverage metric semantics version;
+- stable `DGPIdentity`;
+- resolved `MeanTargetCheck`;
+- `n` and `simulations`;
+- tolerance;
+- evidence confidence level and interval method;
+- root seed.
+
+`batch_size` and progress callbacks are explicitly excluded from the
+experiment payload and therefore cannot change its fingerprint. Unknown
+execution-control fields are rejected by strict experiment deserialization.
+
+Persistent bootstrap coverage experiments require an explicit stable
+`DGPIdentity`; the transient repr-based custom-DGP fallback is not accepted.
+
+`BootstrapCoverageCheckpointState` records only the committed execution state:
+
+- completed logical outer replicates;
+- cumulative covered intervals;
+- lossless outer RNG snapshot.
+
+The outer RNG snapshot is required to be the explicit PCG64 stream used by the
+coverage executor. State round-trip tests restore the Generator and require the
+following random stream to be exactly equal.
+
+Phase D2 does not add checkpoint persistence, checkpoint cadence, resume
+execution, or any `bootstrap_mean_coverage()` checkpoint argument.
