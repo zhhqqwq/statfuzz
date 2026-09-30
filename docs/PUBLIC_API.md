@@ -334,3 +334,22 @@ point. Repeated evaluation of the same rejected point receives the same seed
 and reproduces the same `BootstrapCoverageResult`.
 
 Family shrinking, reports, and StatCI remain unchanged.
+
+
+## Bootstrap coverage family shrinking
+
+The existing `shrink_dgp_family(...)` workflow accepts
+`BootstrapCoverageResult` through the common `StatisticalPropertyResult`
+contract. No bootstrap-specific family-shrinking API is required.
+
+Each canonical `FamilyPoint` receives the existing deterministic family seed
+derived from the family-shrink root seed and the complete serialized family
+point. Candidates are evaluated from the simplest family upward, and the first
+candidate that still satisfies the failure criterion is accepted.
+
+Phase E3 validates a real percentile-bootstrap coverage path in which the
+simplest Normal candidate returns inside tolerance and is rejected, while the
+next LogNormal candidate remains outside tolerance and is accepted. This makes
+LogNormal the simplest still-failing family in the explicit canonical plan.
+
+Report and StatCI behavior remain unchanged.
