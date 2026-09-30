@@ -7,10 +7,7 @@ from numbers import Integral, Real
 
 import numpy as np
 
-from .bootstrap_checkpoint import (
-    BootstrapCoverageCheckpoint,
-    BootstrapCoverageExperimentSpec,
-)
+from .bootstrap_checkpoint import BootstrapCoverageCheckpoint
 from .checkpoint import ExecutionContract
 from .dgp.base import DataGenerator, DGPIdentity, get_dgp_identity
 from .methods.bootstrap import (
