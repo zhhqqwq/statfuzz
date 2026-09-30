@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import tempfile
 from dataclasses import dataclass
 from numbers import Integral, Real
+from pathlib import Path
 
 import numpy as np
 
 from .checkpoint import (
+    CheckpointError,
+    CheckpointFingerprintError,
     CheckpointSchemaError,
     ExecutionContract,
     ExperimentFingerprint,
@@ -18,6 +23,7 @@ from .methods.bootstrap import BootstrapMeanPercentile
 from .targets import MeanTarget, MeanTargetCheck, resolve_mean_target
 
 BOOTSTRAP_COVERAGE_EXPERIMENT_SCHEMA = "statfuzz.bootstrap_coverage.experiment/1"
+BOOTSTRAP_COVERAGE_CHECKPOINT_SCHEMA = "statfuzz.bootstrap_coverage.checkpoint/1"
 BOOTSTRAP_COVERAGE_METRIC = "coverage"
 BOOTSTRAP_COVERAGE_METRIC_SEMANTICS_VERSION = "1"
 BOOTSTRAP_COVERAGE_OUTER_BIT_GENERATOR = (
@@ -264,6 +270,28 @@ class BootstrapCoverageExperimentSpec:
     def canonical_json(self) -> str:
         return _canonical_json(self.as_dict())
 
+    def bind_dgp(self, dgp: object) -> BootstrapCoverageExperimentSpec:
+        """Rebuild this semantic experiment against one runtime DGP."""
+
+        declaration = None
+        if self.target_check.source == "declaration" or self.target_check.note is not None:
+            declaration = MeanTarget(
+                mean=self.target_check.mean,
+                note=self.target_check.note,
+            )
+
+        return type(self).from_coverage_config(
+            dgp=dgp,
+            n=self.n,
+            simulations=self.simulations,
+            method=self.method_config,
+            tolerance=self.tolerance,
+            seed=self.root_seed,
+            mean_target=declaration,
+            evidence_confidence_level=self.evidence_confidence_level,
+            evidence_interval_method=self.evidence_interval_method,
+        )
+
     def fingerprint(
         self,
         execution: ExecutionContract,
@@ -502,10 +530,218 @@ class BootstrapCoverageCheckpointState:
         )
 
 
+@dataclass(frozen=True)
+class BootstrapCoverageCheckpoint:
+    """Persistent checkpoint container for bootstrap mean coverage."""
+
+    experiment: BootstrapCoverageExperimentSpec
+    execution: ExecutionContract
+    state: BootstrapCoverageCheckpointState
+    fingerprint: ExperimentFingerprint
+    schema: str = BOOTSTRAP_COVERAGE_CHECKPOINT_SCHEMA
+
+    def __post_init__(self) -> None:
+        if self.schema != BOOTSTRAP_COVERAGE_CHECKPOINT_SCHEMA:
+            raise CheckpointSchemaError(
+                f"unsupported bootstrap coverage checkpoint schema {self.schema!r}"
+            )
+        if not isinstance(self.experiment, BootstrapCoverageExperimentSpec):
+            raise CheckpointSchemaError(
+                "experiment must be a BootstrapCoverageExperimentSpec"
+            )
+        if not isinstance(self.execution, ExecutionContract):
+            raise CheckpointSchemaError("execution must be an ExecutionContract")
+        if not isinstance(self.state, BootstrapCoverageCheckpointState):
+            raise CheckpointSchemaError(
+                "state must be a BootstrapCoverageCheckpointState"
+            )
+        if not isinstance(self.fingerprint, ExperimentFingerprint):
+            raise CheckpointSchemaError(
+                "fingerprint must be an ExperimentFingerprint"
+            )
+
+        expected = self.experiment.fingerprint(self.execution)
+        if self.fingerprint != expected:
+            raise CheckpointFingerprintError(
+                "bootstrap coverage checkpoint fingerprint does not match "
+                "experiment and execution"
+            )
+        self.state.validate_for(self.experiment)
+        if self.state.rng.bit_generator != self.execution.bit_generator:
+            raise CheckpointSchemaError(
+                "bootstrap coverage checkpoint RNG type does not match "
+                "execution contract"
+            )
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        experiment: BootstrapCoverageExperimentSpec,
+        rng: np.random.Generator,
+        completed: int,
+        covered: int,
+    ) -> BootstrapCoverageCheckpoint:
+        if not isinstance(experiment, BootstrapCoverageExperimentSpec):
+            raise TypeError(
+                "experiment must be a BootstrapCoverageExperimentSpec"
+            )
+        execution = ExecutionContract.from_generator(rng)
+        fingerprint = experiment.fingerprint(execution)
+        state = BootstrapCoverageCheckpointState.capture(
+            completed=completed,
+            covered=covered,
+            rng=rng,
+        )
+        state.validate_for(experiment)
+        return cls(
+            experiment=experiment,
+            execution=execution,
+            state=state,
+            fingerprint=fingerprint,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.schema,
+            "fingerprint": self.fingerprint.as_dict(),
+            "experiment": self.experiment.as_dict(),
+            "execution": self.execution.as_dict(),
+            "state": self.state.as_dict(),
+        }
+
+    def to_json(self, *, indent: int = 2) -> str:
+        return json.dumps(
+            self.as_dict(),
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=indent,
+            allow_nan=False,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict[str, object],
+    ) -> BootstrapCoverageCheckpoint:
+        data = _require_object(data, "bootstrap coverage checkpoint")
+        _require_exact_keys(
+            data,
+            {"schema", "fingerprint", "experiment", "execution", "state"},
+            "bootstrap coverage checkpoint",
+        )
+        return cls(
+            schema=_require_string(
+                data["schema"],
+                "bootstrap coverage checkpoint.schema",
+            ),
+            fingerprint=ExperimentFingerprint.from_dict(
+                _require_object(
+                    data["fingerprint"],
+                    "bootstrap coverage checkpoint.fingerprint",
+                )
+            ),
+            experiment=BootstrapCoverageExperimentSpec.from_dict(
+                _require_object(
+                    data["experiment"],
+                    "bootstrap coverage checkpoint.experiment",
+                )
+            ),
+            execution=ExecutionContract.from_dict(
+                _require_object(
+                    data["execution"],
+                    "bootstrap coverage checkpoint.execution",
+                )
+            ),
+            state=BootstrapCoverageCheckpointState.from_dict(
+                _require_object(
+                    data["state"],
+                    "bootstrap coverage checkpoint.state",
+                )
+            ),
+        )
+
+    @classmethod
+    def from_json(cls, text: str) -> BootstrapCoverageCheckpoint:
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise CheckpointSchemaError(
+                "bootstrap coverage checkpoint is not valid JSON"
+            ) from exc
+        return cls.from_dict(
+            _require_object(data, "bootstrap coverage checkpoint")
+        )
+
+    @classmethod
+    def read(cls, path: str | Path) -> BootstrapCoverageCheckpoint:
+        source = Path(path)
+        try:
+            text = source.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise CheckpointError(
+                f"failed to read bootstrap coverage checkpoint {source}"
+            ) from exc
+        return cls.from_json(text)
+
+    def validate_for(
+        self,
+        experiment: BootstrapCoverageExperimentSpec,
+        execution: ExecutionContract,
+    ) -> None:
+        if not isinstance(experiment, BootstrapCoverageExperimentSpec):
+            raise TypeError(
+                "experiment must be a BootstrapCoverageExperimentSpec"
+            )
+        if not isinstance(execution, ExecutionContract):
+            raise TypeError("execution must be an ExecutionContract")
+        expected = experiment.fingerprint(execution)
+        if self.fingerprint != expected:
+            raise CheckpointFingerprintError(
+                "bootstrap coverage checkpoint does not match the requested "
+                "experiment and execution"
+            )
+
+    def write_atomic(
+        self,
+        path: str | Path,
+        *,
+        indent: int = 2,
+    ) -> Path:
+        target = Path(path)
+        payload = self.to_json(indent=indent) + "\n"
+
+        temp_path: Path | None = None
+        try:
+            fd, temp_name = tempfile.mkstemp(
+                prefix=f".{target.name}.",
+                suffix=".tmp",
+                dir=target.parent,
+            )
+            temp_path = Path(temp_name)
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, target)
+        except OSError as exc:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            raise CheckpointError(
+                f"failed to atomically write bootstrap coverage checkpoint {target}"
+            ) from exc
+        return target
+
+
 __all__ = [
+    "BOOTSTRAP_COVERAGE_CHECKPOINT_SCHEMA",
     "BOOTSTRAP_COVERAGE_EXPERIMENT_SCHEMA",
     "BOOTSTRAP_COVERAGE_METRIC_SEMANTICS_VERSION",
     "BOOTSTRAP_COVERAGE_OUTER_BIT_GENERATOR",
+    "BootstrapCoverageCheckpoint",
     "BootstrapCoverageCheckpointState",
     "BootstrapCoverageExperimentSpec",
 ]

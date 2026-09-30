@@ -798,3 +798,48 @@ following random stream to be exactly equal.
 
 Phase D2 does not add checkpoint persistence, checkpoint cadence, resume
 execution, or any `bootstrap_mean_coverage()` checkpoint argument.
+
+
+## 26. Bootstrap Phase D3 implementation status
+
+Phase D3 adds checkpoint persistence and an internal minimal resume path.
+
+`BootstrapCoverageCheckpoint` is the persistent container for the Phase D2
+experiment and committed state. Its schema is
+`statfuzz.bootstrap_coverage.checkpoint/1`. The container requires a
+self-consistent experiment/execution fingerprint, validates that the committed
+state does not exceed the experiment budget, and requires the state outer RNG
+type to match the execution contract.
+
+Persistence semantics mirror the already-proven Welch checkpoint path:
+
+- strict JSON object schemas;
+- fingerprint validation during load;
+- atomic same-directory temporary file;
+- flush + `fsync`;
+- `os.replace`;
+- failed replacement preserves the old destination and cleans the temp file.
+
+The coverage outer executor now has an internal logical-range kernel. An
+uninterrupted run executes `[0, simulations)` from zero covered events. The
+internal resume helper validates the runtime DGP and execution contract before
+any draw, restores the exact outer PCG64 snapshot, then executes
+`[completed, simulations)` with the checkpoint's cumulative covered count.
+
+Fixed-batch resume tests run a real prefix, persist/read the checkpoint, resume,
+and compare against uninterrupted execution. They require exact equality of:
+
+- final `BootstrapCoverageResult`;
+- complete outer DGP sample sequence;
+- complete `BootstrapCoverageEvent` sequence;
+- final cumulative coverage count;
+- final outer BitGenerator state and following RNG stream.
+
+The equivalence is tested across all four built-in DGPs for one fixed batch
+size, with additional fixed-batch boundary tests for batch sizes 1, 2, and 7.
+A mismatched runtime DGP must fail fingerprint validation before any new outer
+draw, and a fully completed checkpoint resumes without drawing again.
+
+Changing batch size across the checkpoint boundary is intentionally not tested
+in D3 and remains Phase D4. No public `bootstrap_mean_coverage()` resume API
+exists yet.
