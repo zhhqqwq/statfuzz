@@ -24,6 +24,7 @@ workflow.
 Core:
 
 - `__version__`
+- `BootstrapCoverageProgress`
 - `BootstrapCoverageResult`
 - `bootstrap_mean_coverage`
 - `stress_test`
@@ -269,3 +270,26 @@ order and then evaluated one-by-one in that same order. The tested
 `batch_size=1/2/7/64/>simulations` cases are exactly equivalent to the C2
 scalar oracle in result, coverage-event sequence, outer sample sequence, and
 final outer RNG state.
+
+
+## Bootstrap coverage progress callback
+
+`bootstrap_mean_coverage(..., progress_callback=...)` emits immutable
+`BootstrapCoverageProgress` snapshots only after a complete outer batch has
+been evaluated and its coverage count committed.
+
+Each snapshot contains:
+
+- `completed`: cumulative committed outer replicates;
+- `total`: total requested outer simulations;
+- `covered`: cumulative covered intervals;
+- `empirical`: exactly `covered / completed`.
+
+There is no event at zero. Callback return values are ignored. A callback
+exception propagates immediately after the completed batch has been committed,
+and no progress event is emitted for a batch whose coverage evaluation fails
+before completion.
+
+Progress observation is execution-only: enabling or disabling the callback does
+not alter the statistical result, outer sample sequence, coverage-event
+sequence, or outer RNG state.
