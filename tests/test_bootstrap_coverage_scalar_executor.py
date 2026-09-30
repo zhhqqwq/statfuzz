@@ -11,7 +11,6 @@ from statfuzz.dgp import LogNormal, MixtureNormal, Normal, StudentT
 from statfuzz.methods import BootstrapMeanPercentile
 from statfuzz.targets import MeanTargetCheck
 
-
 ROOT_SEED = 20260930
 METHOD = BootstrapMeanPercentile(resamples=7, interval_level=0.8)
 
