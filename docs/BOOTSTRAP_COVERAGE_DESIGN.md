@@ -1211,3 +1211,38 @@ The existing `compare_results(...)` worsening policy is unchanged.
 `render_regression_summary(...)` and
 `write_regression_summary(...)` are also intentionally unchanged; display
 integration remains a separate phase.
+
+
+## 36. Bootstrap StatCI Phase 2D implementation status
+
+Phase 2D changes regression-summary presentation only.
+
+The existing pure Type-I Markdown layout remains byte-for-byte compatible.
+A summary is considered key-aware only when at least one matched, missing, or
+new comparison key is a `BootstrapCoverageComparisonKey`.
+
+Pure Type-I suites therefore retain:
+
+- the existing `Property` table header;
+- existing row values and numeric formatting;
+- existing regression/unmatched sections;
+- the existing trailing newline and Markdown structure.
+
+Coverage or mixed suites instead use a `Check` column whose value is the
+escaped complete `key.describe()` string. This exposes the Phase 2A identity
+context needed to distinguish otherwise identical `coverage` property names.
+
+Phase 2D reference tests lock complete Markdown snapshots for:
+
+- one pure Type-I regression summary, byte-for-byte;
+- one pure Bootstrap coverage regression summary;
+- one mixed Type-I + coverage regression summary;
+- deterministic mixed-summary text under permuted baseline/current suite input
+  order.
+
+No changes are made to:
+
+- `compare_results(...)` or `compare_suites(...)` regression semantics;
+- `RegressionPolicy`;
+- regression JSON serialization;
+- status-artifact schemas or writers.
