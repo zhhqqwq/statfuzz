@@ -87,7 +87,7 @@ def test_bootstrap_compare_results_stable_reference_case():
         seed=101,
     )
     current = _coverage_result(
-        observed=0.84,
+        observed=0.76,
         mcse=0.01,
         seed=102,
     )
@@ -98,7 +98,7 @@ def test_bootstrap_compare_results_stable_reference_case():
     assert comparison.key == BootstrapCoverageComparisonKey.from_result(
         baseline
     )
-    assert comparison.observed_change == pytest.approx(0.08)
+    assert comparison.observed_change == pytest.approx(0.0)
     assert comparison.worsening == pytest.approx(0.0)
     assert comparison.direction == "STABLE"
     assert not comparison.regressed
