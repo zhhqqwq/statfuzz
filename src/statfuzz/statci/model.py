@@ -7,11 +7,50 @@ from pathlib import Path
 
 from ..bootstrap_coverage import BootstrapCoverageResult
 from ..dgp.base import DGPIdentity
+from ..methods.bootstrap import BootstrapMeanPercentile
 from ..nulls import MeanNullCheck
 from ..result import StatisticalPropertyResult, StressTestResult
+from ..targets import MeanTargetCheck
 
 STATCI_SCHEMA_VERSION = "1.2"
 _SUPPORTED_STATCI_SCHEMA_VERSIONS = {"1.0", "1.1", STATCI_SCHEMA_VERSION}
+
+
+def _require_exact_keys(
+    data: dict[str, object],
+    expected: set[str],
+    name: str,
+) -> None:
+    actual = set(data)
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        details = []
+        if missing:
+            details.append(f"missing={missing!r}")
+        if extra:
+            details.append(f"extra={extra!r}")
+        raise ValueError(
+            f"{name} has unexpected keys ({', '.join(details)})"
+        )
+
+
+def _non_empty_string(name: str, value: object) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{name} must be a non-empty string")
+    return value
+
+
+def _positive_int(name: str, value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
+def _non_negative_int(name: str, value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(f"{name} must be a non-negative integer")
+    return value
 
 
 def _finite(name: str, value: object) -> float:
@@ -57,6 +96,10 @@ class StatCIResult:
     @property
     def status(self) -> str:
         return "PASS" if self.passed else "FAIL"
+
+    @property
+    def evidence_kind(self) -> str:
+        return "stress_test"
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -140,6 +183,8 @@ class StatCIResult:
         evidence = data.get("evidence")
         if not isinstance(evidence, dict):
             raise TypeError("StatCIResult payload requires an evidence object")
+        if evidence.get("kind") == "bootstrap_coverage":
+            return _bootstrap_coverage_result_from_dict(data, evidence)
 
         property_name = data.get("property")
         metric = evidence.get("metric")
@@ -310,14 +355,18 @@ class _BootstrapCoverageStatCIResult(StatCIResult):
 
     dgp: str = ""
     dgp_identity: DGPIdentity | None = None
-    target_check: dict[str, object] | None = None
+    target_check: MeanTargetCheck | None = None
     coverage_count: int | None = None
-    bootstrap_method: dict[str, object] | None = None
+    bootstrap_method: BootstrapMeanPercentile | None = None
     evidence_confidence_level: float | None = None
     evidence_interval_method: str | None = None
     evidence_interval_low: float | None = None
     evidence_interval_high: float | None = None
     n: int | None = None
+
+    @property
+    def evidence_kind(self) -> str:
+        return "bootstrap_coverage"
 
     def as_dict(self) -> dict[str, object]:
         if self.dgp_identity is None:
@@ -371,9 +420,9 @@ class _BootstrapCoverageStatCIResult(StatCIResult):
                 "simulations": self.simulations,
                 "seed": self.seed,
                 "mcse": self.mcse,
-                "target_check": dict(self.target_check),
+                "target_check": self.target_check.as_dict(),
                 "coverage_count": self.coverage_count,
-                "bootstrap_method": dict(self.bootstrap_method),
+                "bootstrap_method": self.bootstrap_method.as_dict(),
                 "evidence_interval": {
                     "level": self.evidence_confidence_level,
                     "method": self.evidence_interval_method,
@@ -382,6 +431,220 @@ class _BootstrapCoverageStatCIResult(StatCIResult):
                 },
             },
         }
+
+
+def _bootstrap_coverage_result_from_dict(
+    data: dict[str, object],
+    evidence: dict[str, object],
+) -> StatCIResult:
+    """Strictly reconstruct one persisted Bootstrap coverage StatCI result."""
+
+    _require_exact_keys(
+        data,
+        {
+            "schema_version",
+            "property",
+            "target",
+            "tolerance",
+            "observed",
+            "deviation",
+            "absolute_deviation",
+            "passed",
+            "status",
+            "evidence",
+        },
+        "Bootstrap coverage StatCI result",
+    )
+    _require_exact_keys(
+        evidence,
+        {
+            "kind",
+            "method",
+            "metric",
+            "dgp",
+            "dgp_identity",
+            "n",
+            "simulations",
+            "seed",
+            "mcse",
+            "target_check",
+            "coverage_count",
+            "bootstrap_method",
+            "evidence_interval",
+        },
+        "Bootstrap coverage StatCI evidence",
+    )
+    if evidence["kind"] != "bootstrap_coverage":
+        raise ValueError("unsupported Bootstrap coverage evidence kind")
+
+    property_name = _non_empty_string("property", data["property"])
+    method = _non_empty_string("evidence.method", evidence["method"])
+    metric = _non_empty_string("evidence.metric", evidence["metric"])
+    if property_name != metric:
+        raise ValueError("property must match evidence.metric")
+    if metric != "coverage":
+        raise ValueError("Bootstrap coverage evidence metric must be 'coverage'")
+
+    dgp = _non_empty_string("evidence.dgp", evidence["dgp"])
+    raw_dgp_identity = evidence["dgp_identity"]
+    raw_target_check = evidence["target_check"]
+    raw_bootstrap_method = evidence["bootstrap_method"]
+    raw_interval = evidence["evidence_interval"]
+    if not isinstance(raw_dgp_identity, dict):
+        raise TypeError("evidence.dgp_identity must be an object")
+    if not isinstance(raw_target_check, dict):
+        raise TypeError("evidence.target_check must be an object")
+    if not isinstance(raw_bootstrap_method, dict):
+        raise TypeError("evidence.bootstrap_method must be an object")
+    if not isinstance(raw_interval, dict):
+        raise TypeError("evidence.evidence_interval must be an object")
+
+    _require_exact_keys(
+        raw_target_check,
+        {"kind", "source", "mean", "population_mean", "note"},
+        "evidence.target_check",
+    )
+    _require_exact_keys(
+        raw_interval,
+        {"level", "method", "low", "high"},
+        "evidence.evidence_interval",
+    )
+
+    dgp_identity = DGPIdentity.from_dict(raw_dgp_identity)
+    target_check = MeanTargetCheck.from_dict(raw_target_check)
+    bootstrap_method = BootstrapMeanPercentile.from_dict(
+        raw_bootstrap_method
+    )
+    if method != bootstrap_method.method:
+        raise ValueError(
+            "evidence.method must match evidence.bootstrap_method.method"
+        )
+
+    n = _positive_int("evidence.n", evidence["n"])
+    simulations = _positive_int(
+        "evidence.simulations",
+        evidence["simulations"],
+    )
+    seed = evidence["seed"]
+    if seed is not None:
+        seed = _non_negative_int("evidence.seed", seed)
+    coverage_count = _non_negative_int(
+        "evidence.coverage_count",
+        evidence["coverage_count"],
+    )
+    if coverage_count > simulations:
+        raise ValueError(
+            "evidence.coverage_count must not exceed simulations"
+        )
+
+    target = _finite("target", data["target"])
+    tolerance = _finite("tolerance", data["tolerance"])
+    observed = _finite("observed", data["observed"])
+    deviation = _finite("deviation", data["deviation"])
+    absolute_deviation = _finite(
+        "absolute_deviation",
+        data["absolute_deviation"],
+    )
+    mcse = _finite("evidence.mcse", evidence["mcse"])
+    if tolerance < 0:
+        raise ValueError("tolerance must be non-negative")
+    if mcse < 0:
+        raise ValueError("evidence.mcse must be non-negative")
+
+    expected_observed = coverage_count / simulations
+    if not math.isclose(
+        observed,
+        expected_observed,
+        rel_tol=0.0,
+        abs_tol=1e-15,
+    ):
+        raise ValueError(
+            "observed is inconsistent with coverage_count / simulations"
+        )
+
+    confidence_level = _finite(
+        "evidence.evidence_interval.level",
+        raw_interval["level"],
+    )
+    if not 0.0 < confidence_level < 1.0:
+        raise ValueError(
+            "evidence.evidence_interval.level must be between 0 and 1"
+        )
+    interval_method = _non_empty_string(
+        "evidence.evidence_interval.method",
+        raw_interval["method"],
+    )
+    interval_low = _finite(
+        "evidence.evidence_interval.low",
+        raw_interval["low"],
+    )
+    interval_high = _finite(
+        "evidence.evidence_interval.high",
+        raw_interval["high"],
+    )
+    if not 0.0 <= interval_low <= observed <= interval_high <= 1.0:
+        raise ValueError(
+            "Bootstrap coverage evidence interval must contain observed "
+            "within [0, 1]"
+        )
+
+    expected_deviation = observed - target
+    if not math.isclose(
+        deviation,
+        expected_deviation,
+        rel_tol=0.0,
+        abs_tol=1e-15,
+    ):
+        raise ValueError("deviation is inconsistent with observed - target")
+    if not math.isclose(
+        absolute_deviation,
+        abs(deviation),
+        rel_tol=0.0,
+        abs_tol=1e-15,
+    ):
+        raise ValueError(
+            "absolute_deviation is inconsistent with deviation"
+        )
+
+    passed = data["passed"]
+    if not isinstance(passed, bool):
+        raise TypeError("passed must be a boolean")
+    expected_passed = absolute_deviation <= tolerance
+    if passed != expected_passed:
+        raise ValueError("passed is inconsistent with tolerance")
+    if data["status"] != ("PASS" if passed else "FAIL"):
+        raise ValueError("status is inconsistent with passed")
+
+    return _BootstrapCoverageStatCIResult(
+        property=property_name,
+        target=target,
+        tolerance=tolerance,
+        observed=observed,
+        deviation=deviation,
+        absolute_deviation=absolute_deviation,
+        passed=passed,
+        method=method,
+        metric=metric,
+        dgp1=dgp,
+        dgp2=dgp,
+        n1=n,
+        n2=n,
+        simulations=simulations,
+        seed=seed,
+        mcse=mcse,
+        dgp1_identity=dgp_identity,
+        dgp2_identity=dgp_identity,
+        dgp=dgp,
+        dgp_identity=dgp_identity,
+        target_check=target_check,
+        coverage_count=coverage_count,
+        bootstrap_method=bootstrap_method,
+        evidence_confidence_level=confidence_level,
+        evidence_interval_method=interval_method,
+        evidence_interval_low=interval_low,
+        evidence_interval_high=interval_high,
+        n=n,
+    )
 
 
 @dataclass(frozen=True)
@@ -472,9 +735,9 @@ class StatisticalAssertion:
                 dgp2_identity=result.dgp_identity,
                 dgp=result.dgp,
                 dgp_identity=result.dgp_identity,
-                target_check=result.target_check.as_dict(),
+                target_check=result.target_check,
                 coverage_count=result.coverage_count,
-                bootstrap_method=result.method_config.as_dict(),
+                bootstrap_method=result.method_config,
                 evidence_confidence_level=result.evidence_confidence_level,
                 evidence_interval_method=result.evidence_interval_method,
                 evidence_interval_low=result.evidence_interval_low,
