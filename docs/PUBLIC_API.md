@@ -383,3 +383,36 @@ Coverage reports use coverage-specific labels such as `Covered`,
 `REPORT_SCHEMA_VERSION` remains `1.3`; existing Type-I JSON result objects
 retain their prior field names and shape. StatCI is not changed by this report
 integration.
+
+
+## Bootstrap coverage in StatCI assertions
+
+StatCI Phase 1 allows `check_property(...)`, `assert_property(...)`, and
+`StatisticalAssertion.evaluate(...)` to consume a real
+`BootstrapCoverageResult` through the shared `StatisticalPropertyResult`
+contract.
+
+The assertion rule is unchanged:
+
+`abs(observed - target) <= tolerance`
+
+For a Bootstrap coverage assertion, `observed` is empirical coverage and MCSE
+is retained as evidence rather than folded into the engineering threshold.
+
+Current-run Bootstrap StatCI evidence records:
+
+- method and coverage metric;
+- DGP display name and stable `DGPIdentity`;
+- sample size, simulations, and seed;
+- MCSE;
+- resolved `MeanTargetCheck`;
+- coverage count;
+- full `BootstrapMeanPercentile` machine identity;
+- Monte Carlo evidence confidence level, method, and bounds.
+
+Existing Type-I StatCI serialization remains unchanged, including
+`STATCI_SCHEMA_VERSION = "1.2"`, its legacy evidence object, and GitHub summary
+format.
+
+Bootstrap baseline loading and regression comparison are intentionally deferred
+to a later StatCI phase.
