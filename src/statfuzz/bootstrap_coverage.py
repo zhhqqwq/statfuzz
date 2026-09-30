@@ -171,6 +171,16 @@ class BootstrapCoverageResult:
             raise ValueError(
                 "evidence.trials must equal simulations"
             )
+        expected_evidence = binomial_rate_evidence(
+            self.evidence.event_count,
+            self.evidence.trials,
+            confidence_level=self.evidence.confidence_level,
+            interval_method=self.evidence.interval_method,
+        )
+        if self.evidence != expected_evidence:
+            raise ValueError(
+                "evidence is inconsistent with its event count and trials"
+            )
 
     @classmethod
     def from_coverage_count(
