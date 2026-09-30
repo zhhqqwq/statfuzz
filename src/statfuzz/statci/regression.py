@@ -74,9 +74,8 @@ class StatCIComparisonKey:
             raise TypeError("result must be a StatCIResult")
         if result.evidence_kind == "bootstrap_coverage":
             raise TypeError(
-                "Bootstrap coverage regression comparison is not enabled "
-                "until StatCI Phase 2B; use BootstrapCoverageComparisonKey "
-                "for identity only"
+                "Bootstrap coverage suite matching is not enabled yet; "
+                "use BootstrapCoverageComparisonKey for coverage identity"
             )
         return cls(
             property=result.property,
