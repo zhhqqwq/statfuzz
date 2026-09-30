@@ -639,3 +639,38 @@ Phase D4.
 
 There is still no public checkpoint/resume argument on
 `bootstrap_mean_coverage()`.
+
+
+## Bootstrap coverage cross-batch resume validation
+
+Bootstrap Phase D4 validates that outer batch size remains an execution-only
+choice across a checkpoint boundary.
+
+The persistent experiment identity and checkpoint fingerprint continue to
+exclude `batch_size`. A checkpoint created after a fully committed prefix may
+therefore be resumed with a different outer batch size without changing the
+statistical experiment.
+
+The validated transitions include:
+
+- `1 -> 7`;
+- `7 -> 2`;
+- `2 -> 64`;
+- `64 -> 1`.
+
+For each transition, the checkpoint is created only at a complete prefix-batch
+commit boundary. Resume starts exactly at `state.completed`, retains the
+stored cumulative `covered` count, restores the exact outer PCG64 state, and
+uses the new batch size only to schedule the remaining logical indices.
+
+Across all four built-in DGPs, cross-batch prefix+resume is compared with the
+independent scalar uninterrupted oracle and must be exactly equal in:
+
+- final `BootstrapCoverageResult`;
+- complete logical outer sample sequence;
+- complete `BootstrapCoverageEvent` sequence;
+- cumulative coverage count;
+- final outer BitGenerator state and following RNG stream.
+
+No production scheduling fix was required by Phase D4: the D3 logical-range
+kernel already preserved the required semantics.
