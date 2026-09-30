@@ -682,3 +682,42 @@ draw, and malformed DGP samples report the exact logical outer index.
 
 Batching, progress, checkpoint/resume, reporting, and search integration remain
 out of scope after Phase C2.
+
+
+## 23. Bootstrap Phase C3 implementation status
+
+Phase C3 adds outer batching while deliberately keeping bootstrap evaluation
+scalar.
+
+`bootstrap_mean_coverage(...)` now accepts `batch_size` with default `64`.
+The C2 scalar executor is retained as an independent reference oracle.
+
+For each outer batch:
+
+1. outer samples are generated one-by-one in ascending logical-index order from
+   the shared outer `PCG64` Generator;
+2. the completed samples in that batch are evaluated one-by-one in the same
+   logical-index order;
+3. each logical index still receives its deterministic Phase B4 child
+   `PCG64` stream;
+4. each interval still uses the Phase B3 scalar bootstrap oracle;
+5. coverage counts are committed in logical order.
+
+No bootstrap resampling is vectorized.
+
+Strict equivalence tests cover all four built-in DGPs and
+`batch_size=1/2/7/64/>simulations`. Every batched execution is compared
+against the independent C2 scalar executor for:
+
+- the complete outer DGP sample sequence;
+- the complete `BootstrapCoverageEvent` sequence;
+- final `coverage_count`;
+- final outer BitGenerator state and following random stream.
+
+The public `BootstrapCoverageResult` is also required to compare exactly equal
+to the `batch_size=1` result for the same full matrix of DGPs and batch sizes.
+
+Invalid batch sizes fail before the first outer draw.
+
+Progress callbacks, checkpoint/resume, reporting, search integration, and
+bootstrap vectorization remain out of scope after Phase C3.

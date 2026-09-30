@@ -239,13 +239,13 @@ single-replicate event helper remains an implementation-level reference
 operation until the coverage executor is introduced.
 
 
-## Scalar bootstrap mean coverage executor
+## Bootstrap mean coverage executor
 
-`bootstrap_mean_coverage(...)` is the Phase C2 scalar outer reference
-executor. It intentionally has no `batch_size`, progress callback, checkpoint,
-or resume argument.
+`bootstrap_mean_coverage(...)` supports outer execution batching through
+`batch_size` (default `64`). Batching changes scheduling only; bootstrap
+resampling remains scalar and there is no bootstrap vectorization.
 
-For logical outer replicate `i`, execution is strictly:
+For logical outer replicate `i`, execution semantics remain:
 
 ```text
 outer Generator(PCG64(root_seed))
@@ -260,5 +260,12 @@ The outer data Generator is explicitly `PCG64` and is separate from every
 bootstrap child Generator. Therefore changing bootstrap resample count cannot
 change the outer DGP sample sequence.
 
-The scalar executor resolves `MeanTarget` before the first draw and returns a
-`BootstrapCoverageResult` backed by generic binomial-rate Monte Carlo evidence.
+The executor resolves `MeanTarget` and validates `batch_size` before the
+first draw, then returns a `BootstrapCoverageResult` backed by generic
+binomial-rate Monte Carlo evidence.
+
+Within each outer batch, samples are generated one-by-one in logical-index
+order and then evaluated one-by-one in that same order. The tested
+`batch_size=1/2/7/64/>simulations` cases are exactly equivalent to the C2
+scalar oracle in result, coverage-event sequence, outer sample sequence, and
+final outer RNG state.
