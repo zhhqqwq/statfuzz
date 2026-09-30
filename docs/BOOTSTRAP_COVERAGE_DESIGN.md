@@ -878,3 +878,33 @@ from root seed plus logical index.
 
 Phase D is therefore complete at the internal reliability layer. A public
 checkpoint/resume workflow remains intentionally deferred.
+
+
+## 28. Bootstrap Phase E1 implementation status
+
+Phase E1 validates search, discovery, and independent validation with real
+`BootstrapCoverageResult` values.
+
+The existing Phase A structural seam was sufficient: grid search, random search,
+candidate validation, discovery budgeting, objective ranking, and multiplicity
+diagnostics already depend on `StatisticalPropertyResult` rather than concrete
+`StressTestResult`. No seed-derivation or ranking algorithm change was
+required.
+
+Integration tests now exercise `bootstrap_mean_coverage(...)` directly
+through the existing search APIs and lock:
+
+- exact deterministic per-point seeds for a canonical bootstrap parameter grid;
+- deterministic random-search sampled indices and point seeds;
+- reproducible objective ranking for repeated bootstrap searches;
+- independent validation seeds derived from a distinct validation root seed;
+- search and validation simulation budgets in `find_counterexample(...)`;
+- real `BootstrapCoverageResult` objects at both search and validation stages.
+
+Only stale Type-I-specific wording in seed-passthrough error messages was
+generalized to refer to the statistical evaluation. Search algorithms,
+objectives, seed derivation, discovery budgets, and validation selection logic
+remain unchanged.
+
+Shrinking, report, StatCI, and public checkpoint/resume integration remain out
+of scope after Phase E1.
