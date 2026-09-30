@@ -520,3 +520,27 @@ ordering is preserved, followed by Bootstrap coverage keys ordered by their
 Phase 2A identity.
 
 Regression-summary rendering is not changed in Phase 2C.
+
+
+## Bootstrap StatCI regression summaries
+
+StatCI Phase 2D integrates Bootstrap coverage comparison identities into
+`render_regression_summary(...)` without changing regression semantics or
+status artifacts.
+
+Pure Type-I regression suites preserve the existing Markdown format exactly,
+including the legacy `Property` table column.
+
+When a suite contains any Bootstrap coverage comparison key, the summary uses a
+key-aware `Check` column. Each row renders the complete
+`key.describe()` identity so coverage checks with different DGPs, sample
+sizes, targets, tolerances, or Bootstrap method identities are distinguishable.
+Mixed Type-I + coverage suites render both key families in the deterministic
+ordering established by Phase 2C.
+
+Regression bullets and unmatched-check diagnostics continue to use
+`key.describe()`.
+
+`write_regression_summary(...)` continues to delegate to
+`render_regression_summary(...)`. Regression policy, comparison semantics,
+regression JSON schemas, and status-artifact schemas are unchanged.

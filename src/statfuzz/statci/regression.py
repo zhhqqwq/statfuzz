@@ -709,12 +709,28 @@ def _number(value: float) -> str:
     return f"{value:.6g}"
 
 
+def _summary_uses_comparison_keys(
+    result: StatCIRegressionSuiteResult,
+) -> bool:
+    keys = [
+        comparison.key
+        for comparison in result.comparisons
+    ]
+    keys.extend(result.missing_current)
+    keys.extend(result.new_current)
+    return any(
+        isinstance(key, BootstrapCoverageComparisonKey)
+        for key in keys
+    )
+
+
 def render_regression_summary(result: StatCIRegressionSuiteResult) -> str:
     """Render an uncertainty-aware baseline comparison for GitHub Actions."""
 
     if not isinstance(result, StatCIRegressionSuiteResult):
         raise TypeError("result must be a StatCIRegressionSuiteResult")
 
+    show_comparison_key = _summary_uses_comparison_keys(result)
     lines = [
         f"## StatCI Regression — {_md(result.name)}",
         "",
@@ -730,16 +746,34 @@ def render_regression_summary(result: StatCIRegressionSuiteResult) -> str:
             f"{result.policy.uncertainty_mode} uncertainty scale."
         ),
         "",
-        "| Property | Direction | Baseline | Current | Worsening | Uncertainty scale | Guard threshold | PASS→FAIL |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
 
+    if show_comparison_key:
+        lines.extend(
+            [
+                "| Check | Direction | Baseline | Current | Worsening | Uncertainty scale | Guard threshold | PASS→FAIL |",
+                "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "| Property | Direction | Baseline | Current | Worsening | Uncertainty scale | Guard threshold | PASS→FAIL |",
+                "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+            ]
+        )
+
     for comparison in result.comparisons:
+        identity = (
+            comparison.key.describe()
+            if show_comparison_key
+            else comparison.key.property
+        )
         lines.append(
             "| "
             + " | ".join(
                 (
-                    _md(comparison.key.property),
+                    _md(identity),
                     comparison.direction,
                     _number(comparison.baseline.absolute_deviation),
                     _number(comparison.current.absolute_deviation),
