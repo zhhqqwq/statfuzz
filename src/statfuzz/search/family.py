@@ -190,7 +190,8 @@ def _evaluate_family(
         raise TypeError(f"{stage} evaluator must return a StatisticalPropertyResult")
     if result.seed != seed:
         raise ValueError(
-            f"{stage} evaluator must pass the provided seed through to stress_test"
+            f"{stage} evaluator must pass the provided seed through to the "
+            "statistical evaluation"
         )
     if result.simulations != simulations:
         raise ValueError(
