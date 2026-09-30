@@ -949,3 +949,41 @@ point-derived seed and reproduce the same Bootstrap coverage result.
 Only stale Type-I-specific seed-passthrough wording in the parameter shrinker
 was generalized to refer to the statistical evaluation. Family shrinking,
 report, and StatCI remain out of scope after Phase E2.
+
+
+## 30. Bootstrap Phase E3 implementation status
+
+Phase E3 validates DGP-family shrinking with real
+`BootstrapCoverageResult` values.
+
+The existing family shrinker already consumes `StatisticalPropertyResult`, so
+no family-seed derivation, candidate ordering, criterion, or complexity rule
+needed to change.
+
+The fixed Bootstrap reference path uses:
+
+- family shrink root seed `1`;
+- 40 outer simulations per family evaluation;
+- common sample size `n=8`;
+- percentile method with 19 bootstrap resamples and interval level 0.8;
+- tolerance 0.10;
+- canonical family order:
+  `Normal -> LogNormal -> StudentT -> MixtureNormal`.
+
+The run starts from the most complex canonical MixtureNormal candidate. Tests
+lock the exact deterministic family seeds and coverage evidence:
+
+- MixtureNormal start: `24/40 = 0.6`, outside tolerance;
+- Normal proposal: `31/40 = 0.775`, inside tolerance and rejected;
+- LogNormal proposal: `16/40 = 0.4`, outside tolerance and accepted.
+
+The shrinker therefore stops at LogNormal. Normal is the only simpler canonical
+family and does not preserve the failure, so LogNormal is the simplest
+still-failing family under the explicit plan.
+
+Repeating the full family shrink must produce exactly equal
+`FamilyShrinkResult`, trace rows, seeds, and Bootstrap coverage results.
+
+Only stale Type-I-specific seed-passthrough wording in the family shrinker was
+generalized to refer to the statistical evaluation. Report and StatCI remain
+out of scope after Phase E3.
