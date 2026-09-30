@@ -24,6 +24,7 @@ workflow.
 Core:
 
 - `__version__`
+- `BootstrapCoverageResult`
 - `stress_test`
 - `StressTestResult`
 - `MeanEqualityNull`
@@ -216,3 +217,22 @@ big-endian integer.
 This makes child-stream assignment a pure function of root seed and logical
 outer index. Request order and consumption of one child stream cannot perturb
 another child stream.
+
+
+## Bootstrap coverage result contract
+
+`BootstrapCoverageResult` is the public aggregate result contract for the
+future percentile-bootstrap mean coverage executor. It satisfies the same
+`StatisticalPropertyResult` shape used by search and shrinking while keeping
+coverage-specific evidence explicit:
+
+- the configured `BootstrapMeanPercentile` method;
+- resolved `MeanTargetCheck`;
+- coverage count and Bernoulli-rate evidence;
+- bootstrap interval level as the nominal property target;
+- Monte Carlo evidence confidence level and Wilson interval;
+- DGP identity, sample size, root seed, and engineering tolerance.
+
+Phase C1 does not yet provide a public outer simulation function. The
+single-replicate event helper remains an implementation-level reference
+operation until the coverage executor is introduced.

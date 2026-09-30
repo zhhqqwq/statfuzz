@@ -614,3 +614,36 @@ selected logical indices. Additional tests prove:
 
 Outer DGP sampling, coverage events, coverage aggregation, batching, progress,
 and checkpoint/resume remain out of scope after Phase B4.
+
+
+## 21. Bootstrap Phase C1 implementation status
+
+Phase C1 introduces the aggregate result contract and one-logical-replicate
+coverage event only.
+
+`BootstrapCoverageResult` is a frozen statistical-property result backed by
+the existing generic `BinomialRateEvidence`. Its nominal target is the
+bootstrap method's `interval_level`, its event count is `coverage_count`,
+and its PASS / OUTSIDE_TOLERANCE rule remains absolute deviation from nominal
+coverage.
+
+The internal scalar event helper composes the already-locked Phase B
+contracts:
+
+`MeanTargetCheck + BootstrapMeanPercentile + root seed + logical outer index`
+
+then:
+
+1. derives the deterministic Phase B4 child `PCG64` Generator;
+2. calls the Phase B3 scalar percentile interval oracle on the supplied sample;
+3. evaluates coverage using the inclusive rule
+   `interval_low <= target_mean <= interval_high`;
+4. returns an immutable event containing the logical index, target, interval,
+   and covered flag.
+
+Fixed-reference tests lock a known child-derived interval and prove that equality
+with either interval boundary counts as covered. The event contract also rejects
+a manually inconsistent covered flag.
+
+Outer DGP sampling, simulations loops, batching, progress, checkpoint/resume,
+reporting, and search integration remain out of scope after Phase C1.
