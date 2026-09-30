@@ -1,7 +1,7 @@
 """StatFuzz: stress testing for statistical methods."""
 
 from ._version import __version__
-from .bootstrap_coverage import BootstrapCoverageResult
+from .bootstrap_coverage import BootstrapCoverageResult, bootstrap_mean_coverage
 from .nulls import MeanEqualityNull, MeanNullCheck
 from .result import StressTestResult
 from .simulation import SimulationProgress, stress_test
@@ -41,6 +41,7 @@ __all__ = [
     "StatisticalAssertionError",
     "StressTestResult",
     "__version__",
+    "bootstrap_mean_coverage",
     "assert_property",
     "assert_regression_suite",
     "assert_suite",
