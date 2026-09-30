@@ -293,3 +293,25 @@ before completion.
 Progress observation is execution-only: enabling or disabling the callback does
 not alter the statistical result, outer sample sequence, coverage-event
 sequence, or outer RNG state.
+
+
+## Bootstrap coverage in search and validation
+
+The existing search APIs accept any result satisfying
+`StatisticalPropertyResult`, including `BootstrapCoverageResult`.
+No bootstrap-specific search API is required.
+
+A caller may therefore use `bootstrap_mean_coverage(...)` inside:
+
+- `grid_search(...)`;
+- `random_search(...)`;
+- `validate_candidate(...)`;
+- `find_counterexample(...)`.
+
+Search point seeds continue to be derived solely from the search root seed and
+canonical `ParameterPoint`. Independent validation uses the same selected
+point with a child seed derived from a distinct validation root seed. Ranking
+continues to use the existing generic objective functions over
+`nominal / empirical / deviation`.
+
+Phase E1 does not change shrinking, report, or StatCI behavior.
